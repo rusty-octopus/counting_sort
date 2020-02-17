@@ -84,7 +84,7 @@ fn re_order_iter<'a,T,ITER>(iterator:ITER, count_vector:&mut Vec<usize>, length:
     let mut sorted_vector:Vec<T> = vec![*min_value; length];
     for value in iterator.rev() {
         let index_count_vector = T::into(*value - *min_value);
-        let mut index =  count_vector[index_count_vector as usize];
+        let mut index =  count_vector[index_count_vector];
         index -= 1;
         count_vector[index_count_vector] = index;
         sorted_vector[index] = *value;
@@ -200,6 +200,7 @@ mod tests {
         let test_vector:Vec<i8> = vec![2,-2,1,-6];
         let sorted_vector = vec![];
         let i:i8 = -15;
+        println!("{}", i as usize);
         //let sorted_vector = counting_sort(& mut test_vector.iter());
         assert_eq!(vec![-6,-2,1,2], sorted_vector);
     }
