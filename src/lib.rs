@@ -1,36 +1,22 @@
 // https://www.cs.usfca.edu/~galles/visualization/CountingSort.html
 // https://en.wikipedia.org/wiki/Counting_sort
 
-// ideas:
-// * counting_sort for usigned and signed
-//   * how to "divide"? how to share code
-// * Macros?
-//   * index type?
-// * test errors / uncovered lines
-// * tests for signed unsigned u8/16/u32/u64 etc.
-// * Tests for DoubleEndedIterator other than Vec
-// * Use benchmarking?
-//   * time measurement for performance evaluation vs. std lib
-// * todo enable analysis method <= should be called inspect & InspectionResult
-//   * consider memory size!!! can you avoid allocating "gaps"?
-// * docs + docs test
-//   * How to use it for a non integer
+// Todos:
+// 1. Finalize interface
+//    * as trait for DoubleEndedIterator? Is this possible to use then outside this crate?
+// 2. Benchmarking
+// 3. Analyze / Inspect, or add more errors + 2 versions (abort when too much memory or execute anyway)
+// 4. Tests: unit, component, docs
+//    * code coverage either via tarpaulin or kcov
+//    * i8, i16, i32, u8, u16, u32
+//    * Test for errors: e.g. when TryInto may fail
+//    * test for lists, sets etc.
+// 5. Docs
 
 
 use std::cmp::{min,max,Ord};
 use std::ops::Sub;
 use std::convert::TryInto;
-use std::num::TryFromIntError;
-
-pub trait ToUsize {
-    fn to(self) -> Option<usize>;
-}
-
-//impl ToUsize for u8 {
-//    fn to(self) -> Option<usize> {
-//        
-//    }
-//}
 
 pub trait CountingSort<T:TryInto<usize>> 
 {
@@ -74,42 +60,36 @@ impl CountingSort<u8> for Vec<u8> {
 //    TOO_MUCH_EFFORT
 //}
 
-pub struct InspectionResult<T> 
-    where T: Ord + Copy
-{
-    pub min_value: T,
-    pub max_value: T,
-    pub range: usize,
-    pub asymptotic_effort: u64,
-    pub overflow_possible: bool
-}
+//pub struct InspectionResult<T> 
+//    where T: Ord + Copy
+//{
+//    pub min_value: T,
+//    pub max_value: T,
+//    pub range: usize,
+//    pub asymptotic_effort: u64,
+//    pub overflow_possible: bool
+//}
 
-impl<'a,T> InspectionResult<T>
-    where T: Ord + Copy + 'a
-{
-    fn inspect_signed<ITER>(iterator: ITER) -> Option<InspectionResult<T>> 
-        where ITER: DoubleEndedIterator<Item=&'a T> + Clone
-    {
-        let min_max_tuple = get_min_max(& mut iterator.clone());
-        if min_max_tuple.is_some() {
-            let (min_value,max_value) = min_max_tuple.unwrap();
-            //let opt_range = get_range_signed(&min_value, &max_value);
-            Some(InspectionResult{
-                min_value: min_value.clone(),
-                max_value: max_value.clone(),
-                range: 0,
-                asymptotic_effort: 0,
-                overflow_possible: false
-            })
-        } else {
-            None
-        }
-    }
-}
-
-//pub trait IntoIndex<T> {
-//    fn into(value:&T) -> usize {
-//        i8::into::<usize>(-8)
+//impl<'a,T> InspectionResult<T>
+//    where T: Ord + Copy + 'a
+//{
+//    fn inspect_signed<ITER>(iterator: ITER) -> Option<InspectionResult<T>> 
+//        where ITER: DoubleEndedIterator<Item=&'a T> + Clone
+//    {
+//        let min_max_tuple = get_min_max(& mut iterator.clone());
+//        if min_max_tuple.is_some() {
+//            let (min_value,max_value) = min_max_tuple.unwrap();
+//            //let opt_range = get_range_signed(&min_value, &max_value);
+//            Some(InspectionResult{
+//                min_value: min_value.clone(),
+//                max_value: max_value.clone(),
+//                range: 0,
+//                asymptotic_effort: 0,
+//                overflow_possible: false
+//            })
+//        } else {
+//            None
+//        }
 //    }
 //}
 
@@ -122,6 +102,7 @@ pub fn counting_sort<'a,ITER,T>(iterator:& mut ITER) -> Result<Vec<T>,<T as std:
         let (min_value, max_value) = optional_tuple.unwrap();
         counting_sort_known_min_max(iterator, min_value, max_value)
     } else {
+        // FIXME: This should be an error
         Ok(vec![])
     }
 }
@@ -142,39 +123,10 @@ pub fn counting_sort_known_min_max<'a,ITER,T>(iterator:& mut ITER, min_value:&T,
     Ok(vec![])
 }
 
-macro_rules! get_usize {
-    ($T:ty,$int_type:ty,$a:ident,$b:ident) => {{
-        let a:$int_type = <$T>::into(*$a);
-        let b:$int_type = <$T>::into(*$b);
-        if a >= b {
-            (a - b) as usize
-        } else {
-            (b - a) as usize
-        }
-    }};
-}
-
-fn blub() -> usize {
-    i8::try_into(-4).unwrap()
-}
-
-fn get_usize_signed<T>(a:&T,b:&T) -> usize 
-    where T: Into<isize>+Copy
-{
-    get_usize!(T,isize,a,b)
-}
-
-fn get_usize_unsigned<T>(a:&T,b:&T) -> usize 
-    where T: Into<usize>+Copy+Ord
-{
-    get_usize!(T,usize,a,b)
-}
-
 fn re_order<'a,T,ITER>(iterator:ITER, count_vector:&mut Vec<usize>, length:usize, min_value:&T)-> Result<Vec<T>,<T as std::convert::TryInto<usize>>::Error>
     where T:Ord+Copy+TryInto<usize>+Sub<Output=T>+'a,
           ITER:DoubleEndedIterator<Item=&'a T>
-{ //<Type as std::convert::TryInto>::Error
-  //<usize as std::convert::TryInto>::Error
+{
     let mut sorted_vector:Vec<T> = vec![*min_value; length];
     for value in iterator.rev() {
         let index_count_vector = T::try_into(*value - *min_value)?;
@@ -218,22 +170,6 @@ fn calculate_prefix_sum(count_vector:&mut Vec<usize>)
     }
 }
 
-fn get_range_signed_checked<T:Into<isize>+Copy>(min_value:&T,max_value:&T) -> Option<isize> {
-    T::into(*max_value).checked_sub(T::into(*min_value))
-}
-
-fn get_range_unsigned<T:Into<isize>+Copy>(min_value:&T,max_value:&T) -> Option<isize> {
-    T::into(*max_value).checked_sub(T::into(*min_value))
-}
-
-//fn get_value_range<T,INT_TYPE>(min_value:&T, max_value:&T) -> usize 
-//    where T: Into<INT_TYPE>,
-//        INT_TYPE: Sub<Output=INT_TYPE>
-//{
-//    let range = T::into(*max_value) - T::into(*min_value);
-//    usize::from(range)
-//}
-
 fn get_min_max<T,ITER>(iterator:& mut ITER)-> Option<(T,T)>
     where T:Ord+Copy,
           ITER:Iterator<Item=T>
@@ -259,7 +195,7 @@ mod tests {
     #[test]
     fn test_for_u8() {
         let mut test_vector:Vec<u8> = vec![4,3,2,1];
-        test_vector.counting_sort();
+        test_vector.counting_sort().unwrap();
         assert_eq!(vec![1,2,3,4], test_vector);
     }
 
@@ -279,11 +215,6 @@ mod tests {
     }
 
     #[test]
-    fn test_get_usize_signed() {
-        assert_eq!(0xFFFF, get_usize_signed::<i16>(&i16::min_value(),&i16::max_value()));
-    }
-
-    #[test]
     fn test_for_i8_iter() {
         let test_vector:Vec<i8> = vec![2,-2,1,-6];
         let sorted_vector = counting_sort(& mut test_vector.iter()).unwrap();
@@ -294,7 +225,7 @@ mod tests {
     fn test_counting_sort() {
         let mut test_vector = 
             vec![13, 24, 27, 3, 10, 1, 9, 17, 6, 7, 3, 30, 14, 15, 2, 3, 7, 11, 21, 16, 7, 11, 21, 5, 23, 25, 26, 28, 28, 4];
-        test_vector.counting_sort();
+        test_vector.counting_sort().unwrap();
         let sorted_vector = 
             vec![1, 2, 3, 3, 3, 4, 5, 6, 7, 7, 7, 9, 10, 11, 11, 13, 14, 15, 16, 17, 21, 21, 23, 24, 25, 26, 27, 28, 28, 30];
 
