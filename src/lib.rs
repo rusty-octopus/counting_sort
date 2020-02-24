@@ -8,7 +8,9 @@
 //      * Option 2: Extend DoubleEndedIterators
 //    * Final decision is dependent on how you want to use it finally
 //      * E.g. vector.iter().counting_sort()
+//    * should counting_sort return an iterator or the Vec?
 //    * Add one "errors" (map integer errors to one errors)
+//    * counting_sort() -> cnt_sort() ?
 // 2. Rust format
 // 3. Benchmarking
 // 4. Analyze / Inspect, or add more errors + 2 versions (abort when too much memory or execute anyway)
@@ -17,6 +19,9 @@
 //    * i8, i16, i32, u8, u16, u32
 //    * Test for errors: e.g. when TryInto may fail
 //    * test for lists, sets etc.
+// 6. Optimizations
+//    * Copy elements into vector may result in less copies of the element
+//    * currently 2-3 copies per element due to TryInto
 // 6. Docs
 // 7. Publish?
 
@@ -31,14 +36,6 @@ where
 {
     fn counting_sort(self) -> Result<Vec<T>, <T as std::convert::TryInto<usize>>::Error> {
         counting_sort(self)
-    }
-}
-
-//pub type BoxedIterator<T> = Box<dyn DoubleEndedIterator<Item=T>>;
-
-pub trait CSortIter<T: TryInto<usize>> {
-    fn csort(&self) -> Vec<T> {
-        vec![]
     }
 }
 
