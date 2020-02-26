@@ -1,10 +1,6 @@
 use counting_sort::CountingSortIterator;
 
-use counting_sort::CSortIter;
-
 use std::collections::LinkedList;
-
-use std::convert::TryInto;
 
 #[test]
 fn test_counting_sort_on_list() {

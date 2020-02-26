@@ -3,15 +3,20 @@
 
 // Todos:
 // 1. Finalize interface
-//    * as trait for DoubleEndedIterator? Is this possible to use then outside this crate?
-//      * Option 1: Use the generic functions already existing
-//      * Option 2: Extend DoubleEndedIterators
-//    * Final decision is dependent on how you want to use it finally
-//      * E.g. vector.iter().counting_sort()
-//    * should counting_sort return an iterator or the Vec?
-//    * Add one "errors" (map integer errors to one errors)
+//    * Implement fixme errors
+//    * Remove non public interfaces
+//    * Remove old trait CountingSort rename CountingSortIter into CountingSort
 //    * counting_sort() -> cnt_sort() ?
-// 2. Rust format
+//    * cnt_sort_min_max(...)
+//    * DONE => Add own "errors" (map integer errors to own errors)
+//    * DONE => as trait for DoubleEndedIterator? Is this possible to use then outside this crate?
+//      * DONE => Option 1: Use the generic functions already existing
+//      * DONE => Option 2: Extend DoubleEndedIterators
+//    * DONE => Final decision is dependent on how you want to use it finally
+//      * DONE => E.g. vector.iter().counting_sort()
+//    * NO (it makes no sense) => should counting_sort return an iterator or the Vec?
+//    * NO => Iterator copied?? Iterator::copied!! => copies all values, I don't need that
+// 2. DONE => Rust format
 // 3. Benchmarking
 // 4. Analyze / Inspect, or add more errors + 2 versions (abort when too much memory or execute anyway)
 // 5. Tests: unit, component, docs
@@ -19,22 +24,52 @@
 //    * i8, i16, i32, u8, u16, u32
 //    * Test for errors: e.g. when TryInto may fail
 //    * test for lists, sets etc.
-// 6. Optimizations
+// 6. Profile
+// 7. Optimizations
 //    * Copy elements into vector may result in less copies of the element
 //    * currently 2-3 copies per element due to TryInto
-// 6. Docs
-// 7. Publish?
+//    * T:Clone instead of T copy?
+// 8. Docs
+// 9. Publish?
 
 use std::cmp::{max, min, Ord};
 use std::convert::TryInto;
+use std::error::Error;
+use std::fmt;
+use std::fmt::Display;
 use std::ops::Sub;
+
+#[derive(Debug)]
+pub enum CountingSortError {
+    IntoUsizeError(&'static str),
+}
+
+impl Display for CountingSortError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CountingSortError::IntoUsizeError(description) => write!(
+                f,
+                "Error from TryInto<usize>. Original error message: {}.",
+                description
+            ),
+        }
+    }
+}
+
+impl Error for CountingSortError {}
+
+impl CountingSortError {
+    fn from_try_into_error() -> CountingSortError {
+        CountingSortError::IntoUsizeError("out of range integral type conversion attempted")
+    }
+}
 
 pub trait CountingSortIterator<'a, T>
 where
     T: Ord + Copy + Sub<Output = T> + TryInto<usize> + 'a,
     Self: Clone + Sized + DoubleEndedIterator<Item = &'a T>,
 {
-    fn counting_sort(self) -> Result<Vec<T>, <T as std::convert::TryInto<usize>>::Error> {
+    fn counting_sort(self) -> Result<Vec<T>, CountingSortError> {
         counting_sort(self)
     }
 }
@@ -45,12 +80,6 @@ where
     ITER: Sized + DoubleEndedIterator<Item = &'a T> + Clone,
 {
 }
-
-//impl<T:TryInto<usize>> CountingSortIterator<T> for BoxedIterator<T> {
-//    fn counting_sort(self) -> Result<Vec<T>,<T as std::convert::TryInto<usize>>::Error> {
-//        Ok(vec![])
-//    }
-//}
 
 pub trait CountingSort<T: TryInto<usize>> {
     // searches for the min and max value independent from T::max_value()/min_value()
@@ -126,9 +155,7 @@ impl CountingSort<u8> for Vec<u8> {
 //    }
 //}
 
-pub fn counting_sort<'a, ITER, T>(
-    iterator: ITER,
-) -> Result<Vec<T>, <T as std::convert::TryInto<usize>>::Error>
+pub fn counting_sort<'a, ITER, T>(iterator: ITER) -> Result<Vec<T>, CountingSortError>
 where
     ITER: DoubleEndedIterator<Item = &'a T> + Clone,
     T: Ord + Copy + TryInto<usize> + Sub<Output = T> + 'a,
@@ -147,21 +174,31 @@ pub fn counting_sort_known_min_max<'a, ITER, T>(
     iterator: ITER,
     min_value: &T,
     max_value: &T,
-) -> Result<Vec<T>, <T as std::convert::TryInto<usize>>::Error>
+) -> Result<Vec<T>, CountingSortError>
 where
     ITER: DoubleEndedIterator<Item = &'a T> + Clone,
     T: Ord + Copy + TryInto<usize> + Sub<Output = T> + 'a,
 {
-    let mut count_vector = count_values(&mut iterator.clone(), min_value, max_value)?;
+    let count_vector_result = count_values(&mut iterator.clone(), min_value, max_value);
+    if count_vector_result.is_err() {
+        return Err(CountingSortError::from_try_into_error());
+    }
+    let mut count_vector = count_vector_result.unwrap_or(vec![]);
     calculate_prefix_sum(&mut count_vector);
     // last element of the count vector depicts the index-1 of the largest element, hence it is its length
     let length = count_vector.last();
     if length.is_some() {
         let length = *length.unwrap();
-        let sorted_vector = re_order(iterator, &mut count_vector, length, &min_value);
-        return sorted_vector;
+        let sorted_vector_result = re_order(iterator, &mut count_vector, length, &min_value);
+        if sorted_vector_result.is_err() {
+            return Err(CountingSortError::from_try_into_error());
+        } else {
+            return Ok(sorted_vector_result.unwrap_or(vec![]));
+        }
+    } else {
+        // FIXME this is an error
+        Ok(vec![])
     }
-    Ok(vec![])
 }
 
 fn re_order<'a, T, ITER>(
@@ -169,7 +206,7 @@ fn re_order<'a, T, ITER>(
     count_vector: &mut Vec<usize>,
     length: usize,
     min_value: &T,
-) -> Result<Vec<T>, <T as std::convert::TryInto<usize>>::Error>
+) -> Result<Vec<T>, <T as TryInto<usize>>::Error>
 where
     T: Ord + Copy + TryInto<usize> + Sub<Output = T> + 'a,
     ITER: DoubleEndedIterator<Item = &'a T>,
@@ -189,7 +226,7 @@ fn count_values<'a, ITER, T>(
     iterator: &mut ITER,
     min_value: &T,
     max_value: &T,
-) -> Result<Vec<usize>, <T as std::convert::TryInto<usize>>::Error>
+) -> Result<Vec<usize>, <T as TryInto<usize>>::Error>
 where
     ITER: Iterator<Item = &'a T>,
     T: Ord + Copy + TryInto<usize> + Sub<Output = T> + 'a,
