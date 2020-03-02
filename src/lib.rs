@@ -2,23 +2,11 @@
 // https://en.wikipedia.org/wiki/Counting_sort
 
 // Todos:
-// 1. Finalize interface
-//    * Implement fixme errors
-//    * Remove non public interfaces
-//    * Remove old trait CountingSort rename CountingSortIter into CountingSort
-//    * counting_sort() -> cnt_sort() ?
-//    * cnt_sort_min_max(...)
-//    * DONE => Add own "errors" (map integer errors to own errors)
-//    * DONE => as trait for DoubleEndedIterator? Is this possible to use then outside this crate?
-//      * DONE => Option 1: Use the generic functions already existing
-//      * DONE => Option 2: Extend DoubleEndedIterators
-//    * DONE => Final decision is dependent on how you want to use it finally
-//      * DONE => E.g. vector.iter().counting_sort()
-//    * NO (it makes no sense) => should counting_sort return an iterator or the Vec?
-//    * NO => Iterator copied?? Iterator::copied!! => copies all values, I don't need that
-// 2. DONE => Rust format
+// 3. Only "link" against core not std (if possible)
+//    * Change Error type so that std is no longer required
 // 3. Benchmarking
-// 4. Analyze / Inspect, or add more errors + 2 versions (abort when too much memory or execute anyway)
+// 4. Analyze / Inspect / Evaluate, or add more errors + 2 versions (abort when too much memory or execute anyway)
+//    * Used memory and runtime
 // 5. Tests: unit, component, docs
 //    * code coverage either via tarpaulin or kcov
 //    * i8, i16, i32, u8, u16, u32
@@ -32,16 +20,18 @@
 // 8. Docs
 // 9. Publish?
 
-use std::cmp::{max, min, Ord};
-use std::convert::TryInto;
+use core::cmp::{max, min, Ord};
+use core::convert::TryInto;
 use std::error::Error;
-use std::fmt;
-use std::fmt::Display;
-use std::ops::Sub;
+use core::fmt;
+use core::fmt::Display;
+use core::ops::Sub;
 
 #[derive(Debug)]
 pub enum CountingSortError {
     IntoUsizeError(&'static str),
+    IteratorEmpty(&'static str),
+    EmptyCountValuesVector(&'static str),
 }
 
 impl Display for CountingSortError {
@@ -52,6 +42,8 @@ impl Display for CountingSortError {
                 "Error from TryInto<usize>. Original error message: {}.",
                 description
             ),
+            CountingSortError::IteratorEmpty(description) => description.fmt(f),
+            CountingSortError::EmptyCountValuesVector(description) => description.fmt(f),
         }
     }
 }
@@ -62,100 +54,40 @@ impl CountingSortError {
     fn from_try_into_error() -> CountingSortError {
         CountingSortError::IntoUsizeError("out of range integral type conversion attempted")
     }
+
+    fn from_empty_iterator() -> CountingSortError {
+        CountingSortError::IteratorEmpty("There are no element available in the iterator")
+    }
+
+    fn from_empty_count_values_vector() -> CountingSortError {
+        CountingSortError::IteratorEmpty(
+            "The count values vector is empty which should not have happened",
+        )
+    }
 }
 
-pub trait CountingSortIterator<'a, T>
+pub trait CountingSort<'a, T>
 where
     T: Ord + Copy + Sub<Output = T> + TryInto<usize> + 'a,
     Self: Clone + Sized + DoubleEndedIterator<Item = &'a T>,
 {
-    fn counting_sort(self) -> Result<Vec<T>, CountingSortError> {
+    fn cnt_sort(self) -> Result<Vec<T>, CountingSortError> {
         counting_sort(self)
+    }
+
+    fn cnt_sort_min_max(self, min_value: &T, max_value: &T) -> Result<Vec<T>, CountingSortError> {
+        counting_sort_known_min_max(self, min_value, max_value)
     }
 }
 
-impl<'a, T, ITER> CountingSortIterator<'a, T> for ITER
+impl<'a, T, ITER> CountingSort<'a, T> for ITER
 where
     T: Ord + Copy + Sub<Output = T> + TryInto<usize> + 'a,
     ITER: Sized + DoubleEndedIterator<Item = &'a T> + Clone,
 {
 }
 
-pub trait CountingSort<T: TryInto<usize>> {
-    // searches for the min and max value independent from T::max_value()/min_value()
-    fn counting_sort(&mut self) -> Result<(), <T as std::convert::TryInto<usize>>::Error>;
-    //fn counting_sort_known_min_max(& mut self, known_min_value:T, known_max_value:T);
-}
-
-impl CountingSort<u8> for Vec<u8> {
-    fn counting_sort(&mut self) -> Result<(), <u8 as std::convert::TryInto<usize>>::Error> {
-        let optional_tuple = get_min_max(&mut self.iter());
-        if optional_tuple.is_some() {
-            let (min_value, max_value) = optional_tuple.unwrap();
-
-            let mut count_vector = count_values(&mut self.iter(), &min_value, &max_value)?;
-
-            calculate_prefix_sum(&mut count_vector);
-
-            let sorted_vector = re_order(self.iter(), &mut count_vector, self.len(), min_value)?;
-
-            *self = sorted_vector;
-        }
-        Ok(())
-    }
-
-    //fn counting_sort_known_min_max(&mut self, known_min_value: u8, known_max_value: u8){
-    //}
-}
-
-//pub enum MemorySize {
-//    BYTES,
-//    KILO_BTYES,
-//    MEGA_BYTES,
-//    GIGA_BYTES,
-//    TERA_BYTES
-//}
-//
-//pub enum Feasibility {
-//    YES,
-//    TOO_MUCH_MEMORY(u32, MemorySize),
-//    TOO_MUCH_EFFORT
-//}
-
-//pub struct InspectionResult<T>
-//    where T: Ord + Copy
-//{
-//    pub min_value: T,
-//    pub max_value: T,
-//    pub range: usize,
-//    pub asymptotic_effort: u64,
-//    pub overflow_possible: bool
-//}
-
-//impl<'a,T> InspectionResult<T>
-//    where T: Ord + Copy + 'a
-//{
-//    fn inspect_signed<ITER>(iterator: ITER) -> Option<InspectionResult<T>>
-//        where ITER: DoubleEndedIterator<Item=&'a T> + Clone
-//    {
-//        let min_max_tuple = get_min_max(& mut iterator.clone());
-//        if min_max_tuple.is_some() {
-//            let (min_value,max_value) = min_max_tuple.unwrap();
-//            //let opt_range = get_range_signed(&min_value, &max_value);
-//            Some(InspectionResult{
-//                min_value: min_value.clone(),
-//                max_value: max_value.clone(),
-//                range: 0,
-//                asymptotic_effort: 0,
-//                overflow_possible: false
-//            })
-//        } else {
-//            None
-//        }
-//    }
-//}
-
-pub fn counting_sort<'a, ITER, T>(iterator: ITER) -> Result<Vec<T>, CountingSortError>
+fn counting_sort<'a, ITER, T>(iterator: ITER) -> Result<Vec<T>, CountingSortError>
 where
     ITER: DoubleEndedIterator<Item = &'a T> + Clone,
     T: Ord + Copy + TryInto<usize> + Sub<Output = T> + 'a,
@@ -165,12 +97,11 @@ where
         let (min_value, max_value) = optional_tuple.unwrap();
         counting_sort_known_min_max(iterator, min_value, max_value)
     } else {
-        // FIXME: This should be an error
-        Ok(vec![])
+        Err(CountingSortError::from_empty_iterator())
     }
 }
 
-pub fn counting_sort_known_min_max<'a, ITER, T>(
+fn counting_sort_known_min_max<'a, ITER, T>(
     iterator: ITER,
     min_value: &T,
     max_value: &T,
@@ -196,8 +127,7 @@ where
             return Ok(sorted_vector_result.unwrap_or(vec![]));
         }
     } else {
-        // FIXME this is an error
-        Ok(vec![])
+        Err(CountingSortError::from_empty_count_values_vector())
     }
 }
 
@@ -283,7 +213,7 @@ mod tests {
     #[test]
     fn test_for_u8() {
         let mut test_vector: Vec<u8> = vec![4, 3, 2, 1];
-        test_vector.counting_sort().unwrap();
+        test_vector = test_vector.iter().cnt_sort().unwrap();
         assert_eq!(vec![1, 2, 3, 4], test_vector);
     }
 
@@ -315,7 +245,7 @@ mod tests {
             13, 24, 27, 3, 10, 1, 9, 17, 6, 7, 3, 30, 14, 15, 2, 3, 7, 11, 21, 16, 7, 11, 21, 5,
             23, 25, 26, 28, 28, 4,
         ];
-        test_vector.counting_sort().unwrap();
+        test_vector = test_vector.iter().cnt_sort().unwrap();
         let sorted_vector = vec![
             1, 2, 3, 3, 3, 4, 5, 6, 7, 7, 7, 9, 10, 11, 11, 13, 14, 15, 16, 17, 21, 21, 23, 24, 25,
             26, 27, 28, 28, 30,
