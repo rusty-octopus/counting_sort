@@ -48,7 +48,7 @@ fn create_vector_t<T: TryFrom<u32>>(number_of_elements: usize, range: Range<u32>
         let random_value_result = T::try_from(random_u32);
         match random_value_result {
             Ok(v) => vector.push(v),
-            Err(e) => println!("Error occurred converting {}", random_u32),
+            Err(_) => println!("Error occurred converting {}", random_u32),
         };
     }
     vector
@@ -63,5 +63,5 @@ fn test_cnt_sort_min_max_on_u8_vector() {
     let result = vector
         .iter()
         .cnt_sort_min_max(&(range_min as u8), &(range_max as u8));
-    assert!(result.is_ok());
+    assert!(result.is_err());
 }
