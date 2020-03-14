@@ -40,6 +40,8 @@ fn test_slice() {
     assert_eq!(sorted_vector, test_vector);
 }
 
+#[cfg(test)]
+#[cfg_attr(tarpaulin, skip)]
 fn create_vector_t<T: TryFrom<u32>>(number_of_elements: usize, range: Range<u32>) -> Vec<T> {
     let mut vector: Vec<T> = Vec::with_capacity(number_of_elements);
     let mut rng = Rand32::new(7648730752358173238);
