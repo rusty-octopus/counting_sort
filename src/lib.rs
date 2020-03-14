@@ -25,16 +25,17 @@
 
 use core::cmp::{max, min, Ord};
 use core::convert::TryInto;
-use std::error::Error;
 use core::fmt;
 use core::fmt::Display;
 use core::ops::Sub;
+use std::error::Error;
 
 #[derive(Debug)]
 pub enum CountingSortError {
     IntoUsizeError(&'static str),
     IteratorEmpty(&'static str),
     EmptyCountValuesVector(&'static str),
+    SortingUnnecessary(&'static str),
 }
 
 impl Display for CountingSortError {
@@ -47,6 +48,7 @@ impl Display for CountingSortError {
             ),
             CountingSortError::IteratorEmpty(description) => description.fmt(f),
             CountingSortError::EmptyCountValuesVector(description) => description.fmt(f),
+            CountingSortError::SortingUnnecessary(description) => description.fmt(f),
         }
     }
 }
@@ -55,7 +57,7 @@ impl Error for CountingSortError {}
 
 impl CountingSortError {
     fn from_try_into_error() -> CountingSortError {
-        CountingSortError::IntoUsizeError("out of range integral type conversion attempted")
+        CountingSortError::IntoUsizeError("Out of range integral type conversion attempted")
     }
 
     fn from_empty_iterator() -> CountingSortError {
@@ -65,6 +67,12 @@ impl CountingSortError {
     fn from_empty_count_values_vector() -> CountingSortError {
         CountingSortError::IteratorEmpty(
             "The count values vector is empty which should not have happened",
+        )
+    }
+
+    fn from_sorting_unnecessary() -> CountingSortError {
+        CountingSortError::SortingUnnecessary(
+            "Minimum value is identical to maximum value. Therefore no sorting is necessary",
         )
     }
 }
@@ -113,6 +121,9 @@ where
     ITER: DoubleEndedIterator<Item = &'a T> + Clone,
     T: Ord + Copy + TryInto<usize> + Sub<Output = T> + 'a,
 {
+    if min_value == max_value {
+        return Err(CountingSortError::from_sorting_unnecessary());
+    }
     let count_vector_result = count_values(&mut iterator.clone(), min_value, max_value);
     if count_vector_result.is_err() {
         return Err(CountingSortError::from_try_into_error());
