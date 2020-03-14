@@ -2,23 +2,26 @@
 // https://en.wikipedia.org/wiki/Counting_sort
 
 // Todos:
-// 3. Only "link" against core not std (if possible)
+// 1. Only "link" against core not std (if possible)
 //    * Change Error type so that std is no longer required
-// 3. Benchmarking
-// 4. Analyze / Inspect / Evaluate, or add more errors + 2 versions (abort when too much memory or execute anyway)
-//    * Used memory and runtime
-// 5. Tests: unit, component, docs
-//    * code coverage either via tarpaulin or kcov
+//    * You need Vec currently, core is without any allocation afaik
+//    * You could only return a slice, but it would have to be created with a macro
+// 2. Tests: unit, component, docs
+//    * code coverage either via tarpaulin or kcov or both
 //    * i8, i16, i32, u8, u16, u32
 //    * Test for errors: e.g. when TryInto may fail
 //    * test for lists, sets etc.
-// 6. Profile
-// 7. Optimizations
+//    * Unit tests for all package private functions & all functions but with smaller examples
+//    * Integration tests for larger examples and using lists & vectors
+//    * Doc tests for all public methods
+// 3. Profile
+// 4. Optimizations
 //    * Copy elements into vector may result in less copies of the element
 //    * currently 2-3 copies per element due to TryInto
 //    * T:Clone instead of T copy?
-// 8. Docs
-// 9. Publish?
+// 5. Analyze / Inspect / Evaluate, or add more errors + 2 versions (abort when too much memory or execute anyway)
+//    * Used memory and runtime
+// 6. Publish?
 
 use core::cmp::{max, min, Ord};
 use core::convert::TryInto;
@@ -162,7 +165,7 @@ where
     T: Ord + Copy + TryInto<usize> + Sub<Output = T> + 'a,
 {
     // max_value - min_value should always be >= "0"
-    // however it could overflow isize
+    // however it could overflow usize
     let length = T::try_into(*max_value - *min_value)? + 1;
     let mut count_vector: Vec<usize> = vec![0; length];
 
