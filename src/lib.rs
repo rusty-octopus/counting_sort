@@ -34,7 +34,6 @@ use std::error::Error;
 pub enum CountingSortError {
     IntoUsizeError(&'static str),
     IteratorEmpty(&'static str),
-    EmptyCountValuesVector(&'static str),
     SortingUnnecessary(&'static str),
 }
 
@@ -47,7 +46,6 @@ impl Display for CountingSortError {
                 description
             ),
             CountingSortError::IteratorEmpty(description) => description.fmt(f),
-            CountingSortError::EmptyCountValuesVector(description) => description.fmt(f),
             CountingSortError::SortingUnnecessary(description) => description.fmt(f),
         }
     }
@@ -62,12 +60,6 @@ impl CountingSortError {
 
     fn from_empty_iterator() -> CountingSortError {
         CountingSortError::IteratorEmpty("There are no element available in the iterator")
-    }
-
-    fn from_empty_count_values_vector() -> CountingSortError {
-        CountingSortError::IteratorEmpty(
-            "The count values vector is empty which should not have happened",
-        )
     }
 
     fn from_sorting_unnecessary() -> CountingSortError {
@@ -87,7 +79,7 @@ where
     }
 
     fn cnt_sort_min_max(self, min_value: &T, max_value: &T) -> Result<Vec<T>, CountingSortError> {
-        counting_sort_known_min_max(self, min_value, max_value)
+        counting_sort_min_max(self, min_value, max_value)
     }
 }
 
@@ -106,13 +98,13 @@ where
     let optional_tuple = get_min_max(&mut iterator.clone());
     if optional_tuple.is_some() {
         let (min_value, max_value) = optional_tuple.unwrap();
-        counting_sort_known_min_max(iterator, min_value, max_value)
+        counting_sort_min_max(iterator, min_value, max_value)
     } else {
         Err(CountingSortError::from_empty_iterator())
     }
 }
 
-fn counting_sort_known_min_max<'a, ITER, T>(
+fn counting_sort_min_max<'a, ITER, T>(
     iterator: ITER,
     min_value: &T,
     max_value: &T,
@@ -131,17 +123,12 @@ where
     let mut count_vector = count_vector_result.unwrap_or(vec![]);
     calculate_prefix_sum(&mut count_vector);
     // last element of the count vector depicts the index-1 of the largest element, hence it is its length
-    let length = count_vector.last();
-    if length.is_some() {
-        let length = *length.unwrap();
-        let sorted_vector_result = re_order(iterator, &mut count_vector, length, &min_value);
-        if sorted_vector_result.is_err() {
-            return Err(CountingSortError::from_try_into_error());
-        } else {
-            return Ok(sorted_vector_result.unwrap_or(vec![]));
-        }
+    let length = *count_vector.last().unwrap(); // it's safe to unwrap, since vector has at least one element
+    let sorted_vector_result = re_order(iterator, &mut count_vector, length, &min_value);
+    if sorted_vector_result.is_err() {
+        return Err(CountingSortError::from_try_into_error());
     } else {
-        Err(CountingSortError::from_empty_count_values_vector())
+        return Ok(sorted_vector_result.unwrap_or(vec![]));
     }
 }
 
@@ -220,71 +207,96 @@ where
 }
 
 #[cfg(test)]
-mod tests {
+mod unit_tests {
 
     use super::*;
 
-    #[test]
-    fn test_for_u8() {
-        let mut test_vector: Vec<u8> = vec![4, 3, 2, 1];
-        test_vector = test_vector.iter().cnt_sort().unwrap();
-        assert_eq!(vec![1, 2, 3, 4], test_vector);
-    }
+    const TEST_ARRAY_MIN_VALUE: u8 = 1;
+
+    const TEST_ARRAY_MAX_VALUE: u8 = 30;
+
+    const TEST_ARRAY_UNSORTED: [u8; 30] = [
+        13, 24, 27, 3, 10, 1, 9, 17, 6, 7, 3, 30, 14, 15, 2, 3, 7, 11, 21, 16, 7, 11, 21, 5, 23,
+        25, 26, 28, 28, 4,
+    ];
+
+    const TEST_ARRAY_SORTED: [u8; 30] = [
+        1, 2, 3, 3, 3, 4, 5, 6, 7, 7, 7, 9, 10, 11, 11, 13, 14, 15, 16, 17, 21, 21, 23, 24, 25, 26,
+        27, 28, 28, 30,
+    ];
+
+    const TEST_COUNT_VALUES_ARRAY: [usize; 30] = [
+        1, 1, 3, 1, 1, 1, 3, 0, 1, 1, 2, 0, 1, 1, 1, 1, 1, 0, 0, 0, 2, 0, 1, 1, 1, 1, 1, 2, 0, 1,
+    ];
+
+    const TEST_PREFIX_SUM_ARRAY: [usize; 30] = [
+        1, 2, 5, 6, 7, 8, 11, 11, 12, 13, 15, 15, 16, 17, 18, 19, 20, 20, 20, 20, 22, 22, 23, 24,
+        25, 26, 27, 29, 29, 30,
+    ];
 
     #[test]
-    fn test_for_u8_iter() {
-        let test_vector: Vec<u8> = vec![4, 3, 2, 1];
-        let sorted_vector = counting_sort(test_vector.iter()).unwrap();
-        assert_eq!(vec![1, 2, 3, 4], sorted_vector);
-    }
-
-    #[test]
-    fn test_for_u16_iter() {
-        let test_vector: Vec<u16> = vec![4, 3, 2, 1];
-        //let sorted_vector = vec![];// =
-        let sorted_vector = counting_sort(test_vector.iter()).unwrap();
-        assert_eq!(vec![1, 2, 3, 4], sorted_vector);
-    }
-
-    #[test]
-    fn test_for_i8_iter() {
+    fn test_cnt_sort_i8_vector() {
         let test_vector: Vec<i8> = vec![2, -2, 1, -6];
         let sorted_vector = counting_sort(test_vector.iter()).unwrap();
         assert_eq!(vec![-6, -2, 1, 2], sorted_vector);
     }
 
     #[test]
-    fn test_counting_sort() {
-        let mut test_vector = vec![
-            13, 24, 27, 3, 10, 1, 9, 17, 6, 7, 3, 30, 14, 15, 2, 3, 7, 11, 21, 16, 7, 11, 21, 5,
-            23, 25, 26, 28, 28, 4,
-        ];
+    fn test_cnt_sort_u8_vector() {
+        let mut test_vector = TEST_ARRAY_UNSORTED.to_vec();
         test_vector = test_vector.iter().cnt_sort().unwrap();
-        let sorted_vector = vec![
-            1, 2, 3, 3, 3, 4, 5, 6, 7, 7, 7, 9, 10, 11, 11, 13, 14, 15, 16, 17, 21, 21, 23, 24, 25,
-            26, 27, 28, 28, 30,
-        ];
-
+        let sorted_vector = TEST_ARRAY_SORTED.to_vec();
         assert_eq!(sorted_vector, test_vector);
     }
 
     #[test]
-    fn test_counting_sort_iter() {
-        let test_vector: Vec<u8> = vec![
-            13, 24, 27, 3, 10, 1, 9, 17, 6, 7, 3, 30, 14, 15, 2, 3, 7, 11, 21, 16, 7, 11, 21, 5,
-            23, 25, 26, 28, 28, 4,
-        ];
-        let sorted_vector = counting_sort(test_vector.iter()).unwrap();
-        let expected_vector = vec![
-            1, 2, 3, 3, 3, 4, 5, 6, 7, 7, 7, 9, 10, 11, 11, 13, 14, 15, 16, 17, 21, 21, 23, 24, 25,
-            26, 27, 28, 28, 30,
-        ];
+    fn test_cnt_sort_min_max_u8_vector() {
+        let mut test_vector = TEST_ARRAY_UNSORTED.to_vec();
+        test_vector = test_vector
+            .iter()
+            .cnt_sort_min_max(&TEST_ARRAY_MIN_VALUE, &TEST_ARRAY_MAX_VALUE)
+            .unwrap();
+        let sorted_vector = TEST_ARRAY_SORTED.to_vec();
+        assert_eq!(sorted_vector, test_vector);
+    }
 
+    #[test]
+    fn test_counting_sort() {
+        let test_vector: Vec<u8> = TEST_ARRAY_UNSORTED.to_vec();
+        let sorted_vector = counting_sort(test_vector.iter()).unwrap();
+        let expected_vector = TEST_ARRAY_SORTED.to_vec();
         assert_eq!(expected_vector, sorted_vector);
     }
 
     #[test]
-    fn test_unsigned_get_min_max() {
+    fn test_counting_sort_min_max() {
+        let test_vector: Vec<u8> = TEST_ARRAY_UNSORTED.to_vec();
+        let sorted_vector = counting_sort_min_max(
+            test_vector.iter(),
+            &TEST_ARRAY_MIN_VALUE,
+            &TEST_ARRAY_MAX_VALUE,
+        )
+        .unwrap();
+        let expected_vector = TEST_ARRAY_SORTED.to_vec();
+        assert_eq!(expected_vector, sorted_vector);
+    }
+
+    #[test]
+    fn test_count_values() {
+        let test_vector = TEST_ARRAY_UNSORTED.to_vec();
+        let result_count_value_vector = count_values(
+            &mut test_vector.iter(),
+            &TEST_ARRAY_MIN_VALUE,
+            &TEST_ARRAY_MAX_VALUE,
+        );
+        assert!(result_count_value_vector.is_ok());
+        let count_values_vector = result_count_value_vector.unwrap();
+        let expected_vector = TEST_COUNT_VALUES_ARRAY.to_vec();
+        assert_eq!(expected_vector, count_values_vector);
+    }
+
+    #[test]
+    fn test_get_min_max_unsigned() {
         let test_vector: Vec<u8> = vec![1, 2, 3, 4];
         let tuple = get_min_max(&mut test_vector.iter());
         assert!(tuple.is_some());
@@ -294,7 +306,14 @@ mod tests {
     }
 
     #[test]
-    fn test_signed_get_min_max() {
+    fn test_get_min_max_without_min() {
+        let test_vector: Vec<u8> = Vec::new();
+        let tuple = get_min_max(&mut test_vector.iter());
+        assert!(tuple.is_none());
+    }
+
+    #[test]
+    fn test_get_min_max_signed() {
         let test_vector: Vec<i8> = vec![-128, 2, 3, 127];
         let tuple = get_min_max(&mut test_vector.iter());
         assert!(tuple.is_some());
@@ -304,16 +323,124 @@ mod tests {
     }
 
     #[test]
-    fn test_prefix_sum_1() {
+    fn test_calculate_prefix_sum_1() {
         let mut test_vector: Vec<usize> = vec![1; 4];
         calculate_prefix_sum(&mut test_vector);
         assert_eq!(vec![1, 2, 3, 4], test_vector);
     }
 
     #[test]
-    fn test_prefix_sum_2() {
+    fn test_calculate_prefix_sum_2() {
         let mut test_vector: Vec<usize> = vec![1, 2, 3, 4, 5];
         calculate_prefix_sum(&mut test_vector);
         assert_eq!(vec![1, 3, 6, 10, 15], test_vector);
+    }
+
+    #[test]
+    fn test_calculate_prefix_sum_3() {
+        let mut test_vector = TEST_COUNT_VALUES_ARRAY.to_vec();
+        calculate_prefix_sum(&mut test_vector);
+        assert_eq!(TEST_PREFIX_SUM_ARRAY.to_vec(), test_vector);
+    }
+
+    #[test]
+    fn test_re_order() {
+        let test_vector = TEST_ARRAY_UNSORTED.to_vec();
+        let mut test_count_vector = TEST_PREFIX_SUM_ARRAY.to_vec();
+        let result_sorted_vector = re_order(
+            test_vector.iter(),
+            &mut test_count_vector,
+            test_vector.len(),
+            &TEST_ARRAY_MIN_VALUE,
+        );
+        assert!(result_sorted_vector.is_ok());
+        let sorted_vector = result_sorted_vector.unwrap();
+        assert_eq!(TEST_ARRAY_SORTED.to_vec(), sorted_vector);
+    }
+
+    #[test]
+    fn test_sorting_unnecessary_error() {
+        let test_vector = vec![1];
+        let result = counting_sort_min_max(test_vector.iter(), &1, &1);
+        assert!(result.is_err());
+        assert_eq!(
+            "Minimum value is identical to maximum value. Therefore no sorting is necessary",
+            format!("{}", result.unwrap_err())
+        );
+    }
+
+    #[test]
+    fn test_empty_iterator_error() {
+        let test_vector: Vec<u8> = vec![];
+        let result = counting_sort(test_vector.iter());
+        assert!(result.is_err());
+        assert_eq!(
+            "There are no element available in the iterator",
+            format!("{}", result.unwrap_err())
+        );
+    }
+
+    #[test]
+    fn test_try_into_error() {
+        #[derive(Ord, PartialOrd, PartialEq, Eq, Copy, Clone, Debug)]
+        struct ValueWithTryIntoError {
+            value: u8,
+        };
+
+        impl Sub for ValueWithTryIntoError {
+            type Output = ValueWithTryIntoError;
+            fn sub(self, other: ValueWithTryIntoError) -> Self::Output {
+                ValueWithTryIntoError { value: self.value - other.value }
+            }
+        }
+
+        let min_value = ValueWithTryIntoError { value: 0 };
+        let max_value = ValueWithTryIntoError {
+            value: u8::max_value(),
+        };
+
+        impl TryInto<usize> for ValueWithTryIntoError {
+            type Error = String;
+            fn try_into(self) -> Result<usize, Self::Error> {
+                Err(String::from("TryInto always fails"))
+            }
+        }
+
+        let test_vector: Vec<ValueWithTryIntoError> = Vec::new();
+        let result = counting_sort_min_max(test_vector.iter(), &min_value, &max_value);
+        assert!(result.is_err());
+        assert_eq!("Error from TryInto<usize>. Original error message: Out of range integral type conversion attempted.", format!("{}", result.unwrap_err()));
+    }
+
+    #[test]
+    fn test_empty_count_values_vector_is_impossible() {
+        #[derive(Ord, PartialOrd, PartialEq, Eq, Copy, Clone, Debug)]
+        struct ValueWithWrongSubstraction {
+            value: usize,
+        };
+
+        impl Sub for ValueWithWrongSubstraction {
+            type Output = ValueWithWrongSubstraction;
+            fn sub(self, _other: ValueWithWrongSubstraction) -> Self::Output {
+                ValueWithWrongSubstraction { value: 0 }
+            }
+        }
+
+        let min_value = ValueWithWrongSubstraction { value: 0 };
+        let max_value = ValueWithWrongSubstraction {
+            value: usize::max_value(),
+        };
+
+        impl TryInto<usize> for ValueWithWrongSubstraction {
+            type Error = String;
+            fn try_into(self) -> Result<usize, Self::Error> {
+                Ok(self.value as usize)
+            }
+        }
+
+        let test_vector: Vec<ValueWithWrongSubstraction> = Vec::new();
+        let result = counting_sort_min_max(test_vector.iter(), &min_value, &max_value);
+        assert!(result.is_ok());
+        assert_eq!(test_vector, result.unwrap());
     }
 }
