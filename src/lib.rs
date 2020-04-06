@@ -2,8 +2,6 @@
 // https://en.wikipedia.org/wiki/Counting_sort
 
 // Todos:
-// 0. Tests for IntoIndex for Ints
-// 1. Integrate IntoIndex completely
 // 2. Re-execute benchmarks
 // 3. Tests: unit, component, docs
 //    * code coverage either via tarpaulin or kcov or both
@@ -29,7 +27,7 @@ use core::cmp::{max, min, Ord};
 use core::convert::TryInto;
 use core::fmt;
 use core::fmt::Display;
-use core::ops::{Sub};
+use core::ops::Sub;
 use std::error::Error;
 
 #[derive(Debug)]
@@ -79,7 +77,7 @@ impl CountingSortError {
 
 pub trait CountingSort<'a, T>
 where
-    T: Ord + Copy + Sub<Output = T> + TryInto<usize> + 'a,
+    T: Ord + Copy + Sub<Output = T> + TryIntoIndex + 'a,
     Self: Clone + Sized + DoubleEndedIterator<Item = &'a T>,
 {
     fn cnt_sort(self) -> Result<Vec<T>, CountingSortError> {
@@ -93,24 +91,26 @@ where
 
 impl<'a, T, ITER> CountingSort<'a, T> for ITER
 where
-    T: Ord + Copy + Sub<Output = T> + TryInto<usize> + 'a,
+    T: Ord + Copy + Sub<Output = T> + TryIntoIndex + 'a,
     ITER: Sized + DoubleEndedIterator<Item = &'a T> + Clone,
 {
 }
 
 pub trait TryIntoIndex {
     type Error;
-    fn try_into_index(value:&Self, min_value:&Self) -> Result<usize, Self::Error>; 
+    fn try_into_index(value: &Self, min_value: &Self) -> Result<usize, Self::Error>;
 }
 
-macro_rules! try_into_index_impl_for_integers {
+macro_rules! try_into_index_impl_for_signed {
     ($smaller_int:ty,$larger_int:ty) => {
         impl TryIntoIndex for $smaller_int {
             type Error = CountingSortError;
 
             fn try_into_index(value: &Self, min_value: &Self) -> Result<usize, Self::Error> {
                 if min_value <= value {
-                    let result = <$larger_int>::try_into(<$larger_int>::from(*value) - <$larger_int>::from(*min_value));
+                    let result = <$larger_int>::try_into(
+                        <$larger_int>::from(*value) - <$larger_int>::from(*min_value),
+                    );
                     if result.is_err() {
                         Err(CountingSortError::from_try_into_error())
                     } else {
@@ -124,52 +124,54 @@ macro_rules! try_into_index_impl_for_integers {
     };
 }
 
-try_into_index_impl_for_integers!(i8,i16);
-try_into_index_impl_for_integers!(i16,i32);
-try_into_index_impl_for_integers!(i32,i64);
-try_into_index_impl_for_integers!(u8,u16);
-try_into_index_impl_for_integers!(u16,u32);
-try_into_index_impl_for_integers!(u32,u64);
+macro_rules! try_into_index_impl_for_unsigned {
+    ($unsigned:ty) => {
+        impl TryIntoIndex for $unsigned {
+            type Error = CountingSortError;
 
+            fn try_into_index(value: &Self, min_value: &Self) -> Result<usize, Self::Error> {
+                if min_value <= value {
+                    let result = <$unsigned>::try_into(*value - *min_value);
+                    if result.is_err() {
+                        Err(CountingSortError::from_try_into_error())
+                    } else {
+                        Ok(result.unwrap_or(0))
+                    }
+                } else {
+                    Err(CountingSortError::from_min_value_larger_than_value())
+                }
+            }
+        }
+    };
+}
 
-//impl TryIntoIndex for i8 {
-//    type Error = <i8 as std::convert::TryInto<usize>>::Error;
-//
-//    fn try_into_index(value:&Self, min_value:&Self) -> Result<usize, Self::Error> {
-//        if min_value <= value {
-//            i16::try_into(i16::from(*value) - i16::from(*min_value))
-//        } else {
-//            panic!("Implement this error correctly")
-//        }
-//    }
-//}
+macro_rules! try_into_index_impl_for_small_unsigned {
+    ($unsigned:ty) => {
+        impl TryIntoIndex for $unsigned {
+            type Error = CountingSortError;
 
+            fn try_into_index(value: &Self, min_value: &Self) -> Result<usize, Self::Error> {
+                if min_value <= value {
+                    Ok(usize::from(*value - *min_value))
+                } else {
+                    Err(CountingSortError::from_min_value_larger_than_value())
+                }
+            }
+        }
+    };
+}
 
-// impl<U> TryIntoIndex for TryIntoIndexInteger<U>
-// where
-//     U: From<T> + Sub<Output=U> + TryInto<usize>
-// {
-//     type Error = <U as std::convert::TryInto<usize>>::Error;
-
-//     fn try_into_index(value:&Self, min_value:&Self) -> Result<usize, Self::Error> {
-//         U::try_into(U::from(*value) - U::from(*min_value))
-//         //if min_value <= value {
-//         //    let result = U::try_into(U::from(*value) - U::from(*min_value));
-//         //    if result.is_ok() {
-//         //        Ok(result.unwrap())
-//         //    } else {
-//         //        Err(String::from("Implement correct error type here."))
-//         //    }
-//         //} else {
-//         //    panic!("Implement this error correctly")
-//         //}
-//     }
-// }
+try_into_index_impl_for_signed!(i8, i16);
+try_into_index_impl_for_signed!(i16, i32);
+try_into_index_impl_for_signed!(i32, i64);
+try_into_index_impl_for_small_unsigned!(u8);
+try_into_index_impl_for_small_unsigned!(u16);
+try_into_index_impl_for_unsigned!(u32);
 
 fn counting_sort<'a, ITER, T>(iterator: ITER) -> Result<Vec<T>, CountingSortError>
 where
     ITER: DoubleEndedIterator<Item = &'a T> + Clone,
-    T: Ord + Copy + TryInto<usize> + Sub<Output = T> + 'a,
+    T: Ord + Copy + TryIntoIndex + Sub<Output = T> + 'a,
 {
     let optional_tuple = get_min_max(&mut iterator.clone());
     if optional_tuple.is_some() {
@@ -187,7 +189,7 @@ fn counting_sort_min_max<'a, ITER, T>(
 ) -> Result<Vec<T>, CountingSortError>
 where
     ITER: DoubleEndedIterator<Item = &'a T> + Clone,
-    T: Ord + Copy + TryInto<usize> + Sub<Output = T> + 'a,
+    T: Ord + Copy + TryIntoIndex + Sub<Output = T> + 'a,
 {
     if min_value == max_value {
         return Err(CountingSortError::from_sorting_unnecessary());
@@ -213,14 +215,14 @@ fn re_order<'a, T, ITER>(
     count_vector: &mut Vec<usize>,
     length: usize,
     min_value: &T,
-) -> Result<Vec<T>, <T as TryInto<usize>>::Error>
+) -> Result<Vec<T>, <T as TryIntoIndex>::Error>
 where
-    T: Ord + Copy + TryInto<usize> + Sub<Output = T> + 'a,
+    T: Ord + Copy + TryIntoIndex + Sub<Output = T> + 'a,
     ITER: DoubleEndedIterator<Item = &'a T>,
 {
     let mut sorted_vector: Vec<T> = vec![*min_value; length];
     for value in iterator.rev() {
-        let index_count_vector = T::try_into(*value - *min_value)?;
+        let index_count_vector = T::try_into_index(value, min_value)?;
         let mut index = count_vector[index_count_vector];
         index -= 1;
         count_vector[index_count_vector] = index;
@@ -233,29 +235,16 @@ fn count_values<'a, ITER, T>(
     iterator: &mut ITER,
     min_value: &T,
     max_value: &T,
-) -> Result<Vec<usize>, <T as TryInto<usize>>::Error>
+) -> Result<Vec<usize>, <T as TryIntoIndex>::Error>
 where
     ITER: Iterator<Item = &'a T>,
-    T: Ord + Copy + TryInto<usize> + Sub<Output = T> + 'a,
+    T: Ord + Copy + TryIntoIndex + Sub<Output = T> + 'a,
 {
-    // max_value - min_value should always be >= "0"
-    // however it could overflow usize
-    // and it will overflow if max_value - min_value > i*::max_value
-    // FIXME: function that avoids overflows
-    //  * usage similar to https://crates.io/crates/num-traits CheckedSub?
-    //  * Use Wrapping? => I'll guess no, because I want 127 - -128 to be 255 obviously
-    //  * Always convert to a larger integer for the sub? LIke T1, T2, with T2: Sub<Output=T2> and T1: Into<T1>
-    //  * Identify all overflwoing or problematic cases
-    //  * Is there a straight-forward solution when it overflows? 
-    //      * E.g. convert to one larger type integer?
-    //      * or use max_value for these cases to "know" what to do?
-    //  * Use an own trait, which implements "get_index" for all integer types
-    //      * Provide a "blanket" implementation for types that easily convert to integertypes
-    let length = T::try_into(*max_value - *min_value)? + 1;
+    let length = T::try_into_index(max_value, min_value)? + 1;
     let mut count_vector: Vec<usize> = vec![0; length];
 
     for value in iterator {
-        let index = T::try_into(*value - *min_value)?;
+        let index = T::try_into_index(value, min_value)?;
         let new_count_value = count_vector[index] + 1;
         count_vector[index] = new_count_value;
     }
@@ -332,7 +321,7 @@ mod unit_tests {
     fn test_cnt_sort_i8_vector_with_overflow() {
         let test_vector: Vec<i8> = vec![2, -100, 50, -6];
         let sorted_vector = counting_sort(test_vector.iter()).unwrap();
-        assert_eq!(vec![-6, -2, 1, 2], sorted_vector);
+        assert_eq!(vec![-100, -6, 2, 50], sorted_vector);
     }
 
     #[test]
@@ -356,26 +345,75 @@ mod unit_tests {
 
     #[test]
     fn test_into_index_i8() {
-        assert_eq!(255, i8::try_into_index(&127,&-128).unwrap());
-        assert_eq!(0, i8::try_into_index(&-128,&-128).unwrap());
-        assert_eq!(150, i8::try_into_index(&50,&-100).unwrap());
-        assert_eq!(50, i8::try_into_index(&-50,&-100).unwrap());
-        assert_eq!(27, i8::try_into_index(&127,&100).unwrap());
+        assert_eq!(255, i8::try_into_index(&127, &-128).unwrap());
+        assert_eq!(0, i8::try_into_index(&-128, &-128).unwrap());
+        assert_eq!(150, i8::try_into_index(&50, &-100).unwrap());
+        assert_eq!(50, i8::try_into_index(&-50, &-100).unwrap());
+        assert_eq!(27, i8::try_into_index(&127, &100).unwrap());
+    }
+
+    #[test]
+    fn test_into_index_i16() {
+        assert_eq!(0xFFFF, i16::try_into_index(&32767, &-32768).unwrap());
+        assert_eq!(0, i16::try_into_index(&-32768, &-32768).unwrap());
+        assert_eq!(0, i16::try_into_index(&32767, &32767).unwrap());
+    }
+
+    #[test]
+    fn test_into_index_i32() {
+        assert_eq!(
+            0xFFFFFFFF,
+            i32::try_into_index(&2147483647, &-2147483648).unwrap()
+        );
+        assert_eq!(0, i32::try_into_index(&-2147483648, &-2147483648).unwrap());
+        assert_eq!(1, i32::try_into_index(&-2147483647, &-2147483648).unwrap());
+        assert_eq!(0, i32::try_into_index(&2147483647, &2147483647).unwrap());
     }
 
     #[test]
     fn test_into_index_u8() {
-        assert_eq!(255, u8::try_into_index(&255,&0).unwrap());
-        assert_eq!(0, u8::try_into_index(&0,&0).unwrap());
-        assert_eq!(50, u8::try_into_index(&150,&100).unwrap());
-        assert_eq!(50, u8::try_into_index(&100,&50).unwrap());
-        assert_eq!(27, i8::try_into_index(&127,&100).unwrap());
+        assert_eq!(255, u8::try_into_index(&255, &0).unwrap());
+        assert_eq!(0, u8::try_into_index(&0, &0).unwrap());
+        assert_eq!(0, u8::try_into_index(&255, &255).unwrap());
+        assert_eq!(50, u8::try_into_index(&150, &100).unwrap());
+        assert_eq!(50, u8::try_into_index(&100, &50).unwrap());
+        assert_eq!(27, i8::try_into_index(&127, &100).unwrap());
+    }
+
+    #[test]
+    fn test_into_index_u16() {
+        assert_eq!(0xFFFF, u16::try_into_index(&0xFFFF, &0).unwrap());
+        assert_eq!(0, u16::try_into_index(&0, &0).unwrap());
+        assert_eq!(0, u16::try_into_index(&0xFFFF, &0xFFFF).unwrap());
+        assert_eq!(1, u16::try_into_index(&0xFFFF, &0xFFFE).unwrap());
+    }
+
+    #[test]
+    fn test_into_index_u32() {
+        assert_eq!(0xFFFFFFFF, u32::try_into_index(&0xFFFFFFFF, &0).unwrap());
+        assert_eq!(0, u32::try_into_index(&0, &0).unwrap());
+        assert_eq!(50, u32::try_into_index(&1000000, &999950).unwrap());
+        assert_eq!(50, u8::try_into_index(&100, &50).unwrap());
+        assert_eq!(27, i8::try_into_index(&127, &100).unwrap());
     }
 
     #[test]
     fn test_into_index_error() {
-        let error = i8::try_into_index(&-127,&127);
-        assert_eq!("Given min_value is larger than value", format!("{}", error.unwrap_err()));
+        let error = i8::try_into_index(&-127, &127);
+        assert_eq!(
+            "Given min_value is larger than value",
+            format!("{}", error.unwrap_err())
+        );
+        let error = u8::try_into_index(&0, &127);
+        assert_eq!(
+            "Given min_value is larger than value",
+            format!("{}", error.unwrap_err())
+        );
+        let error = u32::try_into_index(&0, &127);
+        assert_eq!(
+            "Given min_value is larger than value",
+            format!("{}", error.unwrap_err())
+        );
     }
 
     #[test]
@@ -508,7 +546,9 @@ mod unit_tests {
         impl Sub for ValueWithTryIntoError {
             type Output = ValueWithTryIntoError;
             fn sub(self, other: ValueWithTryIntoError) -> Self::Output {
-                ValueWithTryIntoError { value: self.value - other.value }
+                ValueWithTryIntoError {
+                    value: self.value - other.value,
+                }
             }
         }
 
@@ -517,9 +557,9 @@ mod unit_tests {
             value: u8::max_value(),
         };
 
-        impl TryInto<usize> for ValueWithTryIntoError {
+        impl TryIntoIndex for ValueWithTryIntoError {
             type Error = String;
-            fn try_into(self) -> Result<usize, Self::Error> {
+            fn try_into_index(_value: &Self, _min_value: &Self) -> Result<usize, Self::Error> {
                 Err(String::from("TryInto always fails"))
             }
         }
@@ -549,10 +589,10 @@ mod unit_tests {
             value: usize::max_value(),
         };
 
-        impl TryInto<usize> for ValueWithWrongSubstraction {
+        impl TryIntoIndex for ValueWithWrongSubstraction {
             type Error = String;
-            fn try_into(self) -> Result<usize, Self::Error> {
-                Ok(self.value as usize)
+            fn try_into_index(_value: &Self, _min_value: &Self) -> Result<usize, Self::Error> {
+                Ok(0)
             }
         }
 
@@ -561,5 +601,4 @@ mod unit_tests {
         assert!(result.is_ok());
         assert_eq!(test_vector, result.unwrap());
     }
-
 }
