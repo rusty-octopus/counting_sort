@@ -2,37 +2,36 @@
 // https://en.wikipedia.org/wiki/Counting_sort
 
 // Todos:
-// 2. Re-execute benchmarks
-// 3. Tests: unit, component, docs
+// 1. Re-execute benchmarks
+// 2. Tests: unit, component, docs
 //    * code coverage either via tarpaulin or kcov or both
 //    * i8, i16, i32, u8, u16, u32
 //    * test for lists, sets etc.
 //    * Integration tests for larger examples and using lists & vectors
 //    * Doc tests for all public methods
-// 4. Only "link" against core not std (if possible)
+// 3. Only "link" against core not std (if possible)
 //    * Change Error type so that std is no longer required
 //    * You need Vec currently, core is without any allocation afaik
 //    * You could only return a slice, but it would have to be created with a macro
-// 5. Profile
-// 6. Optimizations
+// 4. Profile
+// 5. Optimizations
 //    * Copy elements into vector may result in less copies of the element
 //    * currently 2-3 copies per element due to TryInto
 //    * T:Clone instead of T copy?
-// 7. Analyze / Inspect / Evaluate, or add more errors + 2 versions (abort when too much memory or execute anyway)
+// 6. Analyze / Inspect / Evaluate, or add more errors + 2 versions (abort when too much memory or execute anyway)
 //    * Used memory and runtime
-// 8. Move benchmark into own library due to long build and test times
-// 9. Publish?
+// 7. Move benchmark into own library due to long build and test times
+// 8. Publish?
 
 use core::cmp::{max, min, Ord};
 use core::convert::TryInto;
 use core::fmt;
 use core::fmt::Display;
-use core::ops::Sub;
 use std::error::Error;
 
 #[derive(Debug)]
 pub enum CountingSortError {
-    IntoUsizeError(&'static str),
+    IntoIndexError(&'static str),
     MinValueLargerThanValue(&'static str),
     IteratorEmpty(&'static str),
     SortingUnnecessary(&'static str),
@@ -41,11 +40,7 @@ pub enum CountingSortError {
 impl Display for CountingSortError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CountingSortError::IntoUsizeError(description) => write!(
-                f,
-                "Error from TryInto<usize>. Original error message: {}.",
-                description
-            ),
+            CountingSortError::IntoIndexError(description) => description.fmt(f),
             CountingSortError::MinValueLargerThanValue(description) => description.fmt(f),
             CountingSortError::IteratorEmpty(description) => description.fmt(f),
             CountingSortError::SortingUnnecessary(description) => description.fmt(f),
@@ -57,11 +52,7 @@ impl Error for CountingSortError {}
 
 impl CountingSortError {
     fn from_try_into_error() -> CountingSortError {
-        CountingSortError::IntoUsizeError("Out of range integral type conversion attempted")
-    }
-
-    fn from_min_value_larger_than_value() -> CountingSortError {
-        CountingSortError::MinValueLargerThanValue("Given min_value is larger than value")
+        CountingSortError::IntoIndexError("Conversion into index failed")
     }
 
     fn from_empty_iterator() -> CountingSortError {
@@ -77,7 +68,7 @@ impl CountingSortError {
 
 pub trait CountingSort<'a, T>
 where
-    T: Ord + Copy + Sub<Output = T> + TryIntoIndex + 'a,
+    T: Ord + Copy + TryIntoIndex + 'a,
     Self: Clone + Sized + DoubleEndedIterator<Item = &'a T>,
 {
     fn cnt_sort(self) -> Result<Vec<T>, CountingSortError> {
@@ -91,34 +82,26 @@ where
 
 impl<'a, T, ITER> CountingSort<'a, T> for ITER
 where
-    T: Ord + Copy + Sub<Output = T> + TryIntoIndex + 'a,
+    T: Ord + Copy + TryIntoIndex + 'a,
     ITER: Sized + DoubleEndedIterator<Item = &'a T> + Clone,
 {
 }
 
-pub trait TryIntoIndex {
+pub trait TryIntoIndex /*TODO: do this? : Sized + core::ops::Sub<Output=Self>*/ {
     type Error;
+    // TODO: very good explanation how this should be implemented
     fn try_into_index(value: &Self, min_value: &Self) -> Result<usize, Self::Error>;
 }
 
 macro_rules! try_into_index_impl_for_signed {
     ($smaller_int:ty,$larger_int:ty) => {
         impl TryIntoIndex for $smaller_int {
-            type Error = CountingSortError;
+            type Error = <$larger_int as TryInto<usize>>::Error;
 
             fn try_into_index(value: &Self, min_value: &Self) -> Result<usize, Self::Error> {
-                if min_value <= value {
-                    let result = <$larger_int>::try_into(
-                        <$larger_int>::from(*value) - <$larger_int>::from(*min_value),
-                    );
-                    if result.is_err() {
-                        Err(CountingSortError::from_try_into_error())
-                    } else {
-                        Ok(result.unwrap_or(0))
-                    }
-                } else {
-                    Err(CountingSortError::from_min_value_larger_than_value())
-                }
+                <$larger_int>::try_into(
+                    <$larger_int>::from(*value) - <$larger_int>::from(*min_value),
+                )
             }
         }
     };
@@ -127,19 +110,11 @@ macro_rules! try_into_index_impl_for_signed {
 macro_rules! try_into_index_impl_for_unsigned {
     ($unsigned:ty) => {
         impl TryIntoIndex for $unsigned {
-            type Error = CountingSortError;
+            type Error = <$unsigned as TryInto<usize>>::Error;
 
+            #[inline]
             fn try_into_index(value: &Self, min_value: &Self) -> Result<usize, Self::Error> {
-                if min_value <= value {
-                    let result = <$unsigned>::try_into(*value - *min_value);
-                    if result.is_err() {
-                        Err(CountingSortError::from_try_into_error())
-                    } else {
-                        Ok(result.unwrap_or(0))
-                    }
-                } else {
-                    Err(CountingSortError::from_min_value_larger_than_value())
-                }
+                <$unsigned>::try_into(*value - *min_value)
             }
         }
     };
@@ -149,13 +124,9 @@ macro_rules! try_into_index_impl_for_small_unsigned {
     ($unsigned:ty) => {
         impl TryIntoIndex for $unsigned {
             type Error = CountingSortError;
-
+            #[inline]
             fn try_into_index(value: &Self, min_value: &Self) -> Result<usize, Self::Error> {
-                if min_value <= value {
-                    Ok(usize::from(*value - *min_value))
-                } else {
-                    Err(CountingSortError::from_min_value_larger_than_value())
-                }
+                Ok(usize::from(*value - *min_value))
             }
         }
     };
@@ -171,7 +142,7 @@ try_into_index_impl_for_unsigned!(u32);
 fn counting_sort<'a, ITER, T>(iterator: ITER) -> Result<Vec<T>, CountingSortError>
 where
     ITER: DoubleEndedIterator<Item = &'a T> + Clone,
-    T: Ord + Copy + TryIntoIndex + Sub<Output = T> + 'a,
+    T: Ord + Copy + TryIntoIndex + 'a,
 {
     let optional_tuple = get_min_max(&mut iterator.clone());
     if optional_tuple.is_some() {
@@ -189,7 +160,7 @@ fn counting_sort_min_max<'a, ITER, T>(
 ) -> Result<Vec<T>, CountingSortError>
 where
     ITER: DoubleEndedIterator<Item = &'a T> + Clone,
-    T: Ord + Copy + TryIntoIndex + Sub<Output = T> + 'a,
+    T: Ord + Copy + TryIntoIndex + 'a,
 {
     if min_value == max_value {
         return Err(CountingSortError::from_sorting_unnecessary());
@@ -217,7 +188,7 @@ fn re_order<'a, T, ITER>(
     min_value: &T,
 ) -> Result<Vec<T>, <T as TryIntoIndex>::Error>
 where
-    T: Ord + Copy + TryIntoIndex + Sub<Output = T> + 'a,
+    T: Ord + Copy + TryIntoIndex + 'a,
     ITER: DoubleEndedIterator<Item = &'a T>,
 {
     let mut sorted_vector: Vec<T> = vec![*min_value; length];
@@ -238,7 +209,7 @@ fn count_values<'a, ITER, T>(
 ) -> Result<Vec<usize>, <T as TryIntoIndex>::Error>
 where
     ITER: Iterator<Item = &'a T>,
-    T: Ord + Copy + TryIntoIndex + Sub<Output = T> + 'a,
+    T: Ord + Copy + TryIntoIndex + 'a,
 {
     let length = T::try_into_index(max_value, min_value)? + 1;
     let mut count_vector: Vec<usize> = vec![0; length];
@@ -398,25 +369,6 @@ mod unit_tests {
     }
 
     #[test]
-    fn test_into_index_error() {
-        let error = i8::try_into_index(&-127, &127);
-        assert_eq!(
-            "Given min_value is larger than value",
-            format!("{}", error.unwrap_err())
-        );
-        let error = u8::try_into_index(&0, &127);
-        assert_eq!(
-            "Given min_value is larger than value",
-            format!("{}", error.unwrap_err())
-        );
-        let error = u32::try_into_index(&0, &127);
-        assert_eq!(
-            "Given min_value is larger than value",
-            format!("{}", error.unwrap_err())
-        );
-    }
-
-    #[test]
     fn test_counting_sort() {
         let test_vector: Vec<u8> = TEST_ARRAY_UNSORTED.to_vec();
         let sorted_vector = counting_sort(test_vector.iter()).unwrap();
@@ -543,15 +495,6 @@ mod unit_tests {
             value: u8,
         };
 
-        impl Sub for ValueWithTryIntoError {
-            type Output = ValueWithTryIntoError;
-            fn sub(self, other: ValueWithTryIntoError) -> Self::Output {
-                ValueWithTryIntoError {
-                    value: self.value - other.value,
-                }
-            }
-        }
-
         let min_value = ValueWithTryIntoError { value: 0 };
         let max_value = ValueWithTryIntoError {
             value: u8::max_value(),
@@ -567,7 +510,10 @@ mod unit_tests {
         let test_vector: Vec<ValueWithTryIntoError> = Vec::new();
         let result = counting_sort_min_max(test_vector.iter(), &min_value, &max_value);
         assert!(result.is_err());
-        assert_eq!("Error from TryInto<usize>. Original error message: Out of range integral type conversion attempted.", format!("{}", result.unwrap_err()));
+        assert_eq!(
+            "Conversion into index failed",
+            format!("{}", result.unwrap_err())
+        );
     }
 
     #[test]
@@ -576,13 +522,6 @@ mod unit_tests {
         struct ValueWithWrongSubstraction {
             value: usize,
         };
-
-        impl Sub for ValueWithWrongSubstraction {
-            type Output = ValueWithWrongSubstraction;
-            fn sub(self, _other: ValueWithWrongSubstraction) -> Self::Output {
-                ValueWithWrongSubstraction { value: 0 }
-            }
-        }
 
         let min_value = ValueWithWrongSubstraction { value: 0 };
         let max_value = ValueWithWrongSubstraction {
