@@ -32,7 +32,6 @@ use std::error::Error;
 #[derive(Debug)]
 pub enum CountingSortError {
     IntoIndexError(&'static str),
-    MinValueLargerThanValue(&'static str),
     IteratorEmpty(&'static str),
     SortingUnnecessary(&'static str),
 }
@@ -41,7 +40,6 @@ impl Display for CountingSortError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         match self {
             CountingSortError::IntoIndexError(description) => description.fmt(f),
-            CountingSortError::MinValueLargerThanValue(description) => description.fmt(f),
             CountingSortError::IteratorEmpty(description) => description.fmt(f),
             CountingSortError::SortingUnnecessary(description) => description.fmt(f),
         }
