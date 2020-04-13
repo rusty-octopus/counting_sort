@@ -139,6 +139,7 @@ try_into_index_impl_for_small_unsigned!(u8);
 try_into_index_impl_for_small_unsigned!(u16);
 try_into_index_impl_for_unsigned!(u32);
 
+#[inline]
 fn counting_sort<'a, ITER, T>(iterator: ITER) -> Result<Vec<T>, CountingSortError>
 where
     ITER: DoubleEndedIterator<Item = &'a T> + Clone,
@@ -153,6 +154,7 @@ where
     }
 }
 
+#[inline]
 fn counting_sort_min_max<'a, ITER, T>(
     iterator: ITER,
     min_value: &T,
@@ -181,6 +183,7 @@ where
     }
 }
 
+#[inline]
 fn re_order<'a, T, ITER>(
     iterator: ITER,
     count_vector: &mut Vec<usize>,
@@ -202,6 +205,7 @@ where
     Ok(sorted_vector)
 }
 
+#[inline]
 fn count_values<'a, ITER, T>(
     iterator: &mut ITER,
     min_value: &T,
@@ -223,6 +227,7 @@ where
     Ok(count_vector)
 }
 
+#[inline]
 fn calculate_prefix_sum(count_vector: &mut Vec<usize>) {
     let mut iterator = count_vector.iter_mut();
     // skip first element
@@ -236,6 +241,7 @@ fn calculate_prefix_sum(count_vector: &mut Vec<usize>) {
     }
 }
 
+#[inline]
 fn get_min_max<T, ITER>(iterator: &mut ITER) -> Option<(T, T)>
 where
     T: Ord + Copy,
