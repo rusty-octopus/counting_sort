@@ -1,27 +1,82 @@
-// https://www.cs.usfca.edu/~galles/visualization/CountingSort.html
-// https://en.wikipedia.org/wiki/Counting_sort
+//! An counting sort implementation for [`DoubleEndedIterator`](https://doc.rust-lang.org/std/iter/trait.DoubleEndedIterator.html)s.
+//!
+//! Provides the trait [`CountingSort`](trait.CountingSort.html) with a blanket implementation for
+//! [`DoubleEndedIterator`](https://doc.rust-lang.org/std/iter/trait.DoubleEndedIterator.html)s
+//! for all types `T` that implement (beyond other `std` or `core` traits) the here defined
+//! [`TryIntoIndex`](trait.TryIntoIndex.html) trait.
+//! Types that implement this trait can be tried to be converted to an
+//! [`usize`](https://doc.rust-lang.org/std/primitive.usize.html).
+//!
+//! This trait is already implemented for the following integer types:
+//!
+//! * [`u8`](https://doc.rust-lang.org/std/primitive.u8.html)
+//! * [`u16`](https://doc.rust-lang.org/std/primitive.u16.html)
+//! * [`u32`](https://doc.rust-lang.org/std/primitive.u32.html)
+//! * [`usize`](https://doc.rust-lang.org/std/primitive.usize.html)
+//! * [`i8`](https://doc.rust-lang.org/std/primitive.i8.html)
+//! * [`i16`](https://doc.rust-lang.org/std/primitive.i16.html)
+//! * [`i32`](https://doc.rust-lang.org/std/primitive.i32.html)
+//!
+//! This means for all [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html)'s,
+//! [`LinkedList`](https://doc.rust-lang.org/std/collections/struct.LinkedList.html)'s,
+//! [`slices`](https://doc.rust-lang.org/std/collections/struct.HashSet.html)'s or any other
+//! of the implementors of the [`DoubleEndedIterator`](https://doc.rust-lang.org/std/iter/trait.DoubleEndedIterator.html)
+//! trait holding one of the above integers types, counting sort can be executed.
+//!
+//! **Note:** Counting sort is also implemented for [`BTreeSet`](https://doc.rust-lang.org/std/collections/struct.BTreeSet.html),
+//! however it makes no sense to execute it there, since all elements are already in order.
+//!
+//! # Example
+//!
+//! ```
+//! /*
+//!  * Add counting sort to your source code.
+//!  * counting sort immediatelly works "out of the box"
+//!  * for all DoubleEndedIterators and integers like
+//!  * u8, i8, u16, i16.
+//!  */
+//! use counting_sort::CountingSort;
+//!
+//! let vec = vec![2,4,1,3];
+//! // counting sort may fail, therefore a result is returned
+//! let sorted_vec_result = vec.iter().cnt_sort();
+//!
+//! assert!(sorted_vec_result.is_ok());
+//! // if successful sorted elements were copied into a Vec
+//! assert_eq!(vec![1,2,3,4], sorted_vec_result.unwrap());
+//! ```
+//!
+//! # Notes
+//!
+//! * The counting sort algorithm has an `O(n)` asymptotic runtime in comparison to an `O(n*log(n))`
+//!   of the Rust std library implementation of [`slice.sort`](https://doc.rust-lang.org/std/primitive.slice.html#method.sort)
+//! * However the memory consumption is higher
+//!     * Dependent on the range `d` between the minumum value and the maximum value (`d = max_value - min_value`),
+//!       a [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html) of
+//!       [`usize`](https://doc.rust-lang.org/std/primitive.usize.html)'s is allocated
+//!     * This may fast result in GB of memory: the maximum range of [`u32`](https://doc.rust-lang.org/std/primitive.u32.html) is
+//!       4294967295, if usize is 4 bytes, than the memory consumption is 17179869180 bytes or approximately 16 GB
+//!       (1 GB = 1024*1024*1024 bytes)
+//!     * Additionally the current implementation does not consume the given iterator
+//! * This means the counting sort algorithm excels whenever there are a lot of elements to be sorted but the range
+//!   range between minumum value and maximum value is small
+//! * **<span style="color:red">Caution:</span>** Be careful using this algorithm when the range between minumum value and maximum value is large
+//! * An excellent illustration about the counting sort algorithm can be found [here](https://www.cs.usfca.edu/~galles/visualization/CountingSort.html)
+//! * Wikipedia article on [counting sort](https://en.wikipedia.org/wiki/Counting_sort)
 
 // Todos:
-// 1. Re-execute benchmarks
-// 2. Tests: unit, component, docs
-//    * code coverage either via tarpaulin or kcov or both
-//    * i8, i16, i32, u8, u16, u32
-//    * test for lists, sets etc.
-//    * Integration tests for larger examples and using lists & vectors
-//    * Doc tests for all public methods
-// 3. Only "link" against core not std (if possible)
-//    * Change Error type so that std is no longer required
-//    * You need Vec currently, core is without any allocation afaik
-//    * You could only return a slice, but it would have to be created with a macro
-// 4. Profile
-// 5. Optimizations
+// 0. Doc + Doc tests for all public methods
+// 1. Test for map, usize, isize???
+// 2. code coverage with kcov?
+// 3. Profile
+// 4. Optimizations
 //    * Copy elements into vector may result in less copies of the element
 //    * currently 2-3 copies per element due to TryInto
 //    * T:Clone instead of T copy?
-// 6. Analyze / Inspect / Evaluate, or add more errors + 2 versions (abort when too much memory or execute anyway)
+// 5. Analyze / Inspect / Evaluate, or add more errors + 2 versions (abort when too much memory or execute anyway)
 //    * Used memory and runtime
-// 7. Move benchmark into own library due to long build and test times
-// 8. Publish?
+// 6. Move benchmark into own library due to long build and test times
+// 7. Publish?
 
 use core::cmp::{max, min, Ord};
 use core::convert::TryInto;
@@ -34,6 +89,7 @@ pub enum CountingSortError {
     IntoIndexError(&'static str),
     IteratorEmpty(&'static str),
     SortingUnnecessary(&'static str),
+    MinValueLargerMaxValue(&'static str),
 }
 
 impl Display for CountingSortError {
@@ -42,6 +98,7 @@ impl Display for CountingSortError {
             CountingSortError::IntoIndexError(description) => description.fmt(f),
             CountingSortError::IteratorEmpty(description) => description.fmt(f),
             CountingSortError::SortingUnnecessary(description) => description.fmt(f),
+            CountingSortError::MinValueLargerMaxValue(description) => description.fmt(f),
         }
     }
 }
@@ -61,6 +118,10 @@ impl CountingSortError {
         CountingSortError::SortingUnnecessary(
             "Minimum value is identical to maximum value, therefore no sorting is necessary",
         )
+    }
+
+    fn from_min_value_larger_max_value() -> CountingSortError {
+        CountingSortError::MinValueLargerMaxValue("Minimum value is larger than maximum value")
     }
 }
 
@@ -136,6 +197,7 @@ try_into_index_impl_for_signed!(i32, i64);
 try_into_index_impl_for_small_unsigned!(u8);
 try_into_index_impl_for_small_unsigned!(u16);
 try_into_index_impl_for_unsigned!(u32);
+try_into_index_impl_for_unsigned!(usize);
 
 #[inline]
 fn counting_sort<'a, ITER, T>(iterator: ITER) -> Result<Vec<T>, CountingSortError>
@@ -164,6 +226,9 @@ where
 {
     if min_value == max_value {
         return Err(CountingSortError::from_sorting_unnecessary());
+    }
+    if min_value > max_value {
+        return Err(CountingSortError::from_min_value_larger_max_value());
     }
     let count_vector_result = count_values(&mut iterator.clone(), min_value, max_value);
     if count_vector_result.is_err() {
@@ -468,6 +533,17 @@ mod unit_tests {
         assert!(result_sorted_vector.is_ok());
         let sorted_vector = result_sorted_vector.unwrap();
         assert_eq!(TEST_ARRAY_SORTED.to_vec(), sorted_vector);
+    }
+
+    #[test]
+    fn test_min_value_larger_max_value_error() {
+        let test_vector = vec![1];
+        let result = counting_sort_min_max(test_vector.iter(), &1, &0);
+        assert!(result.is_err());
+        assert_eq!(
+            "Minimum value is larger than maximum value",
+            format!("{}", result.unwrap_err())
+        );
     }
 
     #[test]
