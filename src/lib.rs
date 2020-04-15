@@ -64,6 +64,9 @@
 //! * An excellent illustration about the counting sort algorithm can be found [here](https://www.cs.usfca.edu/~galles/visualization/CountingSort.html)
 //! * Wikipedia article on [counting sort](https://en.wikipedia.org/wiki/Counting_sort)
 
+#![warn(missing_docs)]
+#![warn(missing_doc_code_examples)]
+
 // Todos:
 // 0. Doc + Doc tests for all public methods
 // 1. Test for map, usize, isize???
