@@ -17,9 +17,9 @@
 //! * [`i16`](https://doc.rust-lang.org/std/primitive.i16.html)
 //! * [`i32`](https://doc.rust-lang.org/std/primitive.i32.html)
 //!
-//! This means for all [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html)'s,
-//! [`LinkedList`](https://doc.rust-lang.org/std/collections/struct.LinkedList.html)'s,
-//! [`slices`](https://doc.rust-lang.org/std/collections/struct.HashSet.html)'s or any other
+//! This means for all [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html)s,
+//! [`LinkedList`](https://doc.rust-lang.org/std/collections/struct.LinkedList.html)s,
+//! [`slice`](https://doc.rust-lang.org/std/primitive.slice.html)s or any other
 //! of the implementors of the [`DoubleEndedIterator`](https://doc.rust-lang.org/std/iter/trait.DoubleEndedIterator.html)
 //! trait holding one of the above integers types, counting sort can be executed.
 //!
@@ -48,7 +48,7 @@
 //!
 //! # Notes
 //!
-//! * The counting sort algorithm has an `O(n)` asymptotic runtime in comparison to an `O(n*log(n))`
+//! * The counting sort algorithm has an `O(n+d)` (`d` being the range between the minimum value and the maximum value) asymptotic runtime in comparison to an `O(n*log(n))`
 //!   of the Rust std library implementation of [`slice.sort`](https://doc.rust-lang.org/std/primitive.slice.html#method.sort)
 //! * However the memory consumption is higher
 //!     * Dependent on the range `d` between the minumum value and the maximum value (`d = max_value - min_value`),
@@ -69,17 +69,25 @@
 
 // Todos:
 // 0. Doc + Doc tests for all public methods
-// 1. Test for map, usize, isize???
-// 2. code coverage with kcov?
-// 3. Profile
-// 4. Optimizations
+// 1. Source code comments as "design notes", e.g. why "only" i32 not i64
+// 2. Test for map, usize, isize??? Test for keeping order?
+// 3. Do this for TryIntoIndex? : Sized + core::ops::Sub<Output=Self>
+// 3. code coverage with kcov?
+// 4. Profile
+// 5. Optimizations
+//    * Combine slide window and re_order into one step?
+//    * Drain the iterator on count_values, this means trait bound DoubleEndedIterator can be lifted
+//       * Is primarily needed for keeping the original order (is the order important?)
+//       * If iterator is not traversed back to front, then the elements are sorted in reverse order, this is strange
+//       * Draining the iterator will "destroy" the original collection which is devastating when an error happens
+//       * However, the elements could be swapped instead of copied into the new Vec
 //    * Copy elements into vector may result in less copies of the element
 //    * currently 2-3 copies per element due to TryInto
 //    * T:Clone instead of T copy?
-// 5. Analyze / Inspect / Evaluate, or add more errors + 2 versions (abort when too much memory or execute anyway)
+// 6. Analyze / Inspect / Evaluate, or add more errors + 2 versions (abort when too much memory or execute anyway)
 //    * Used memory and runtime
-// 6. Move benchmark into own library due to long build and test times
-// 7. Publish?
+// 7. Move benchmark into own library due to long build and test times
+// 8. Publish?
 
 use core::cmp::{max, min, Ord};
 use core::convert::TryInto;
@@ -87,18 +95,29 @@ use core::fmt;
 use core::fmt::Display;
 use std::error::Error;
 
+/// This enumeration is a list of all possible errors that can happen during
+/// [`cnt_sort`](trait.CountingSort.html#method.cnt_sort) or 
+/// [`cnt_sort_min_max`](trait.CountingSort.html#method.cnt_sort_min_max).
 #[derive(Debug)]
 pub enum CountingSortError {
-    IntoIndexError(&'static str),
+    /// The conversion from a value of the to-be-sorted type `T` into an 
+    /// index ([`usize`](https://doc.rust-lang.org/std/primitive.usize.html)) failed.
+    /// Most likely due to an overflow happening.
+    IntoIndexFailed(&'static str),
+    /// The iterator is empty and therefore nothing can be sorted.
     IteratorEmpty(&'static str),
+    /// The minimum value is equal to the maximum value, this means sorting is unnecessary.
     SortingUnnecessary(&'static str),
+    /// The minimum value is larger than the maximum value, most likely due to calling 
+    /// [`cnt_sort_min_max`](trait.CountingSort.html#method.cnt_sort_min_max) with the switched
+    /// parameters.
     MinValueLargerMaxValue(&'static str),
 }
 
 impl Display for CountingSortError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CountingSortError::IntoIndexError(description) => description.fmt(f),
+            CountingSortError::IntoIndexFailed(description) => description.fmt(f),
             CountingSortError::IteratorEmpty(description) => description.fmt(f),
             CountingSortError::SortingUnnecessary(description) => description.fmt(f),
             CountingSortError::MinValueLargerMaxValue(description) => description.fmt(f),
@@ -109,20 +128,24 @@ impl Display for CountingSortError {
 impl Error for CountingSortError {}
 
 impl CountingSortError {
-    fn from_try_into_error() -> CountingSortError {
-        CountingSortError::IntoIndexError("Conversion into index failed")
+    /// Create IntoIndexFailed error when conversion to index failed.
+    fn from_try_into_index_failed() -> CountingSortError {
+        CountingSortError::IntoIndexFailed("Conversion into index failed")
     }
 
+    /// Create IteratorEmpty error when the iterator is empty.
     fn from_empty_iterator() -> CountingSortError {
         CountingSortError::IteratorEmpty("There are no element available in the iterator")
     }
 
+    /// Create SortingUnnecessary when minimum value equals maximum value.
     fn from_sorting_unnecessary() -> CountingSortError {
         CountingSortError::SortingUnnecessary(
             "Minimum value is identical to maximum value, therefore no sorting is necessary",
         )
     }
 
+    /// Create SortingUnnecessary when minimum value equals maximum value.
     fn from_min_value_larger_max_value() -> CountingSortError {
         CountingSortError::MinValueLargerMaxValue("Minimum value is larger than maximum value")
     }
@@ -142,6 +165,9 @@ where
     }
 }
 
+// Counting sort implementation for ITER with trait bound DoubleEndedIterator.
+// This enables that CountingSort is implemented for all implementors of
+// DoubleEndedIterator, especially for Vec, LinkedList and slice.
 impl<'a, T, ITER> CountingSort<'a, T> for ITER
 where
     T: Ord + Copy + TryIntoIndex + 'a,
@@ -149,7 +175,7 @@ where
 {
 }
 
-pub trait TryIntoIndex /*TODO: do this? : Sized + core::ops::Sub<Output=Self>*/ {
+pub trait TryIntoIndex {
     type Error;
     // TODO: very good explanation how this should be implemented
     fn try_into_index(value: &Self, min_value: &Self) -> Result<usize, Self::Error>;
@@ -235,7 +261,7 @@ where
     }
     let count_vector_result = count_values(&mut iterator.clone(), min_value, max_value);
     if count_vector_result.is_err() {
-        return Err(CountingSortError::from_try_into_error());
+        return Err(CountingSortError::from_try_into_index_failed());
     }
     let mut count_vector = count_vector_result.unwrap_or(vec![]);
     calculate_prefix_sum(&mut count_vector);
@@ -243,7 +269,7 @@ where
     let length = *count_vector.last().unwrap(); // it's safe to unwrap, since vector has at least one element
     let sorted_vector_result = re_order(iterator, &mut count_vector, length, &min_value);
     if sorted_vector_result.is_err() {
-        return Err(CountingSortError::from_try_into_error());
+        return Err(CountingSortError::from_try_into_index_failed());
     } else {
         return Ok(sorted_vector_result.unwrap_or(vec![]));
     }
