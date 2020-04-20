@@ -229,7 +229,7 @@ where
     ///   [`usize::max_value`](https://doc.rust-lang.org/std/primitive.usize.html#method.max_value)
     /// * [`CountingSortError::IteratorEmpty`](enum.CountingSortError.html#variant.IteratorEmpty) when the iterator
     ///   is empty (and there is nothing to sort)
-    /// * [[`CountingSortError::SortingUnnecessary`](enum.CountingSortError.html#variant.SortingUnnecessary)] when
+    /// * [`CountingSortError::SortingUnnecessary`](enum.CountingSortError.html#variant.SortingUnnecessary)] when
     ///   the minimum value is equal to the maximum value, this means all values are essentially equal and no sorting
     ///   is necessary
     fn cnt_sort(self) -> Result<Vec<T>, CountingSortError> {
@@ -284,11 +284,13 @@ where
     /// * [`CountingSortError::IntoIndexFailed`](enum.CountingSortError.html#variant.IntoIndexFailed) when
     ///   converting into an index fails, this could happen if the distance `d` is larger than
     ///   [`usize::max_value`](https://doc.rust-lang.org/std/primitive.usize.html#method.max_value)
-    /// * [[`CountingSortError::SortingUnnecessary`](enum.CountingSortError.html#variant.SortingUnnecessary)] when
+    /// * [`CountingSortError::SortingUnnecessary`](enum.CountingSortError.html#variant.SortingUnnecessary)] when
     ///   the minimum value is equal to the maximum value, this means all values are essentially equal and no sorting
     ///   is necessary
-    /// * [[`CountingSortError::MinValueLargerMaxValue`](enum.CountingSortError.html#variant.MinValueLargerMaxValue)] when
+    /// * [`CountingSortError::MinValueLargerMaxValue`](enum.CountingSortError.html#variant.MinValueLargerMaxValue)] when
     ///   the given minimum value is larger than the given maximum value
+    /// * [`CountingSortError::IndexOutOfBounds`](enum.CountingSortError.html#variant.IndexOutOfBounds)] when
+    ///   the given maximum value is smaller than the actual maximum value of the collection
     fn cnt_sort_min_max(self, min_value: &T, max_value: &T) -> Result<Vec<T>, CountingSortError> {
         counting_sort_min_max(self, min_value, max_value)
     }
@@ -306,7 +308,6 @@ where
 
 pub trait TryIntoIndex {
     type Error;
-    // TODO: very good explanation how this should be implemented
     fn try_into_index(value: &Self, min_value: &Self) -> Result<usize, Self::Error>;
 }
 
@@ -341,32 +342,37 @@ macro_rules! try_into_index_impl_for_unsigned {
 
             #[inline]
             fn try_into_index(value: &Self, min_value: &Self) -> Result<usize, Self::Error> {
-                // Unsigned integer should not overflow as long as value is not smaller than min_value.
-                // Unsigned integer should also be smaller than usize, however try_into will return Err
-                // when the conversion is not possible.
+                // Unsigned integer (e.g. u32) could be larger than usize on some HW.
                 <$unsigned>::try_into(*value - *min_value)
             }
         }
     };
 }
 
+// Macro used for small unsigned integer implementations of TryIntoIndex.
 macro_rules! try_into_index_impl_for_small_unsigned {
     ($unsigned:ty) => {
         impl TryIntoIndex for $unsigned {
             type Error = CountingSortError;
             #[inline]
             fn try_into_index(value: &Self, min_value: &Self) -> Result<usize, Self::Error> {
+                // u8 and u16 should always fit into an usize. Therefore no TryInto is needed.
                 Ok(usize::from(*value - *min_value))
             }
         }
     };
 }
 
+// macro instances for signed integer implementation of TryIntoIndex
 try_into_index_impl_for_signed!(i8, i16);
 try_into_index_impl_for_signed!(i16, i32);
 try_into_index_impl_for_signed!(i32, i64);
+
+// macro instances for small unsigned integer implementation of TryIntoIndex
 try_into_index_impl_for_small_unsigned!(u8);
 try_into_index_impl_for_small_unsigned!(u16);
+
+// macro instances for unsigned integer implementation of TryIntoIndex
 try_into_index_impl_for_unsigned!(u32);
 try_into_index_impl_for_unsigned!(usize);
 
@@ -469,7 +475,6 @@ where
                 let new_count_value = count_vector[index] + 1;
                 count_vector[index] = new_count_value;
             }
-
         }
         return Ok(count_vector);
     }
