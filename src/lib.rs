@@ -28,7 +28,7 @@
 //!
 //! # Example
 //!
-//! ```
+//! ```rust
 //! /*
 //!  * Add counting sort to your source code.
 //!  * counting sort immediatelly works "out of the box"
@@ -96,11 +96,11 @@ use core::fmt::Display;
 use std::error::Error;
 
 /// This enumeration is a list of all possible errors that can happen during
-/// [`cnt_sort`](trait.CountingSort.html#method.cnt_sort) or 
+/// [`cnt_sort`](trait.CountingSort.html#method.cnt_sort) or
 /// [`cnt_sort_min_max`](trait.CountingSort.html#method.cnt_sort_min_max).
 #[derive(Debug)]
 pub enum CountingSortError {
-    /// The conversion from a value of the to-be-sorted type `T` into an 
+    /// The conversion from a value of the to-be-sorted type `T` into an
     /// index ([`usize`](https://doc.rust-lang.org/std/primitive.usize.html)) failed.
     /// Most likely due to an overflow happening.
     IntoIndexFailed(&'static str),
@@ -108,10 +108,14 @@ pub enum CountingSortError {
     IteratorEmpty(&'static str),
     /// The minimum value is equal to the maximum value, this means sorting is unnecessary.
     SortingUnnecessary(&'static str),
-    /// The minimum value is larger than the maximum value, most likely due to calling 
+    /// The minimum value is larger than the maximum value, most likely due to calling
     /// [`cnt_sort_min_max`](trait.CountingSort.html#method.cnt_sort_min_max) with the switched
     /// parameters.
     MinValueLargerMaxValue(&'static str),
+    /// The converted index is still larger than the length of the count value vector. This happens
+    /// when the given maximum value is smaller than the actual maximum value when
+    /// [`cnt_sort_min_max`](trait.CountingSort.html#method.cnt_sort_min_max) is used.
+    IndexOutOfBounds(&'static str),
 }
 
 impl Display for CountingSortError {
@@ -121,6 +125,7 @@ impl Display for CountingSortError {
             CountingSortError::IteratorEmpty(description) => description.fmt(f),
             CountingSortError::SortingUnnecessary(description) => description.fmt(f),
             CountingSortError::MinValueLargerMaxValue(description) => description.fmt(f),
+            CountingSortError::IndexOutOfBounds(description) => description.fmt(f),
         }
     }
 }
@@ -149,17 +154,141 @@ impl CountingSortError {
     fn from_min_value_larger_max_value() -> CountingSortError {
         CountingSortError::MinValueLargerMaxValue("Minimum value is larger than maximum value")
     }
+
+    /// Create IndexOutOfBounds when minimum value equals maximum value.
+    fn from_index_out_of_bounds() -> CountingSortError {
+        CountingSortError::IndexOutOfBounds(
+            "Index is out of bounds, most likely the given maximum value is too small",
+        )
+    }
 }
 
+/// The interface for counting sort algorithm.
+///
+/// Interface provides blanket implementation of all collections that implement
+/// the [`DoubleEndedIterator`](https://doc.rust-lang.org/std/iter/trait.DoubleEndedIterator.html)
+/// trait. These collections must also implement
+/// [`Clone`](https://doc.rust-lang.org/std/clone/trait.Clone.html), since the iterator is iterated several times,
+/// and [`Sized`](https://doc.rust-lang.org/std/marker/trait.Sized.html). If your collection does provide these,
+/// you can simply implement this trait "empty":
+///
+/// ```rust,no_run,ignore
+/// impl CountingSort for YourType {}
+/// ```
+///
+/// However the intention of this trait is to provide an implementation of all collections that
+/// implement the
+/// [`DoubleEndedIterator`](https://doc.rust-lang.org/std/iter/trait.DoubleEndedIterator.html)
+/// trait like [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html).
+///
+/// The types which are held by the collections must implement
+/// [`Ord`](https://doc.rust-lang.org/std/cmp/trait.Ord.html) in order to sort the elements, as well
+/// as [`Copy`](https://doc.rust-lang.org/std/marker/trait.Copy.html), since the elements are copied
+/// during the count phase as well as the re-order phase. Finally the type must implement the in this
+/// crate defined [`TryIntoIndex`](trait.TryIntoIndex.html) trait.
 pub trait CountingSort<'a, T>
 where
     T: Ord + Copy + TryIntoIndex + 'a,
     Self: Clone + Sized + DoubleEndedIterator<Item = &'a T>,
 {
+    /// Sorts the elements in the
+    /// [`DoubleEndedIterator`](https://doc.rust-lang.org/std/iter/trait.DoubleEndedIterator.html)
+    /// with the counting sort algorithm.
+    ///
+    /// This sort is stable (i.e., does not reorder equal elements) and `O(n + d)` worst-case,
+    /// where `d` is the distance between the maximum and minimum element in the collection.
+    ///
+    /// Memory usage is `O(n + d)` as well, since all elements of the collection are copied into a new
+    /// [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html) and the frequency of all
+    /// elements in the collection are counted in a [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html)
+    /// of size `d`.
+    ///
+    /// **<span style="color:red">Caution:</span>** If distance `d` is large, than memory consumption is large
+    /// and you process may run out of memory.
+    ///
+    /// This method iterates [`DoubleEndedIterator`](https://doc.rust-lang.org/std/iter/trait.DoubleEndedIterator.html)
+    /// in the beginning to identify the maximum and mimumum value in order to identify the distance `d`. This means
+    /// the runtime is longer due to this additional `n` iterations and the checks needed to identogy the minimum and
+    /// maximum values.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use counting_sort::CountingSort;
+    ///
+    /// let slice = [20000,-1000,17,333];
+    /// let sorted_vec_result = slice.iter().cnt_sort();
+    ///
+    /// assert_eq!(vec![-1000,17,333,20000], sorted_vec_result.unwrap());
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// * [`CountingSortError::IntoIndexFailed`](enum.CountingSortError.html#variant.IntoIndexFailed) when
+    ///   converting into an index fails, this could happen if the distance `d` is larger than
+    ///   [`usize::max_value`](https://doc.rust-lang.org/std/primitive.usize.html#method.max_value)
+    /// * [`CountingSortError::IteratorEmpty`](enum.CountingSortError.html#variant.IteratorEmpty) when the iterator
+    ///   is empty (and there is nothing to sort)
+    /// * [[`CountingSortError::SortingUnnecessary`](enum.CountingSortError.html#variant.SortingUnnecessary)] when
+    ///   the minimum value is equal to the maximum value, this means all values are essentially equal and no sorting
+    ///   is necessary
     fn cnt_sort(self) -> Result<Vec<T>, CountingSortError> {
         counting_sort(self)
     }
 
+    /// Sorts the elements in the
+    /// [`DoubleEndedIterator`](https://doc.rust-lang.org/std/iter/trait.DoubleEndedIterator.html)
+    /// with the counting sort algorithm given the minimum and maximum element of the collection.
+    ///
+    /// This sort is stable (i.e., does not reorder equal elements) and `O(n + d)` worst-case,
+    /// where `d` is the distance between the maximum and minimum element in the collection.
+    ///
+    /// Memory usage is `O(n + d)` as well, since all elements of the collection are copied into a new
+    /// [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html) and the frequency of all
+    /// elements in the collection are counted in a [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html)
+    /// of size `d`.
+    ///
+    /// **<span style="color:red">Caution:</span>** If distance `d` is large, than memory consumption is large
+    /// and you process may run out of memory.
+    ///
+    /// This method uses the given minimum and maximum element and therefore does not need to iterate the iterator
+    /// to identify the minimum and maximum element.
+    ///
+    /// **<span style="color:red">Caution:</span>** If any element is either larger than the given maximum value
+    /// or smaller than the given minimum value, the method will return with an error. Only use this method if
+    /// you know these values.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use std::collections::LinkedList;
+    /// use counting_sort::CountingSort;
+    ///
+    /// let mut list = LinkedList::new();
+    /// list.push_back(1000001);
+    /// list.push_back(1000003);
+    /// list.push_back(1000002);
+    /// list.push_back(1000000);
+    ///
+    /// let sorted_vec_result = list.iter().cnt_sort_min_max(&1000000, &1000003);
+    ///
+    /// assert_eq!(vec![1000000, 1000001, 1000002, 1000003], sorted_vec_result.unwrap());
+    ///
+    /// // minimum value incorrect
+    /// let error = list.iter().cnt_sort_min_max(&1000001, &1000003);
+    /// assert!(error.is_err());
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// * [`CountingSortError::IntoIndexFailed`](enum.CountingSortError.html#variant.IntoIndexFailed) when
+    ///   converting into an index fails, this could happen if the distance `d` is larger than
+    ///   [`usize::max_value`](https://doc.rust-lang.org/std/primitive.usize.html#method.max_value)
+    /// * [[`CountingSortError::SortingUnnecessary`](enum.CountingSortError.html#variant.SortingUnnecessary)] when
+    ///   the minimum value is equal to the maximum value, this means all values are essentially equal and no sorting
+    ///   is necessary
+    /// * [[`CountingSortError::MinValueLargerMaxValue`](enum.CountingSortError.html#variant.MinValueLargerMaxValue)] when
+    ///   the given minimum value is larger than the given maximum value
     fn cnt_sort_min_max(self, min_value: &T, max_value: &T) -> Result<Vec<T>, CountingSortError> {
         counting_sort_min_max(self, min_value, max_value)
     }
@@ -181,13 +310,22 @@ pub trait TryIntoIndex {
     fn try_into_index(value: &Self, min_value: &Self) -> Result<usize, Self::Error>;
 }
 
+// Macro is needed to implement TryIntoIndex for signed integers, which can overflow during
+// index conversion.
 macro_rules! try_into_index_impl_for_signed {
     ($smaller_int:ty,$larger_int:ty) => {
         impl TryIntoIndex for $smaller_int {
             type Error = <$larger_int as TryInto<usize>>::Error;
 
             fn try_into_index(value: &Self, min_value: &Self) -> Result<usize, Self::Error> {
+                // This conversion can only fail, if the larger integer type has a larger maximum
+                // value then usize. To-be-converted value is always be >= 0 as long as min_value <=
+                // value.
                 <$larger_int>::try_into(
+                    // convert smaller signed integer into larger signed integer to
+                    // avoid integer overflow for the smaller integer.
+                    // Example: 127 - (-128) overflows in i8 since 255 > 127 = i8::max_value().
+                    // It is safe to convert a smaller integer into a larger integer.
                     <$larger_int>::from(*value) - <$larger_int>::from(*min_value),
                 )
             }
@@ -195,6 +333,7 @@ macro_rules! try_into_index_impl_for_signed {
     };
 }
 
+// Macro used for unsigned integer implementations of TryIntoIndex.
 macro_rules! try_into_index_impl_for_unsigned {
     ($unsigned:ty) => {
         impl TryIntoIndex for $unsigned {
@@ -202,6 +341,9 @@ macro_rules! try_into_index_impl_for_unsigned {
 
             #[inline]
             fn try_into_index(value: &Self, min_value: &Self) -> Result<usize, Self::Error> {
+                // Unsigned integer should not overflow as long as value is not smaller than min_value.
+                // Unsigned integer should also be smaller than usize, however try_into will return Err
+                // when the conversion is not possible.
                 <$unsigned>::try_into(*value - *min_value)
             }
         }
@@ -259,20 +401,12 @@ where
     if min_value > max_value {
         return Err(CountingSortError::from_min_value_larger_max_value());
     }
-    let count_vector_result = count_values(&mut iterator.clone(), min_value, max_value);
-    if count_vector_result.is_err() {
-        return Err(CountingSortError::from_try_into_index_failed());
-    }
-    let mut count_vector = count_vector_result.unwrap_or(vec![]);
+    let mut count_vector = count_values(&mut iterator.clone(), min_value, max_value)?;
+
     calculate_prefix_sum(&mut count_vector);
     // last element of the count vector depicts the index-1 of the largest element, hence it is its length
     let length = *count_vector.last().unwrap(); // it's safe to unwrap, since vector has at least one element
-    let sorted_vector_result = re_order(iterator, &mut count_vector, length, &min_value);
-    if sorted_vector_result.is_err() {
-        return Err(CountingSortError::from_try_into_index_failed());
-    } else {
-        return Ok(sorted_vector_result.unwrap_or(vec![]));
-    }
+    re_order(iterator, &mut count_vector, length, &min_value)
 }
 
 #[inline]
@@ -281,18 +415,27 @@ fn re_order<'a, T, ITER>(
     count_vector: &mut Vec<usize>,
     length: usize,
     min_value: &T,
-) -> Result<Vec<T>, <T as TryIntoIndex>::Error>
+) -> Result<Vec<T>, CountingSortError>
 where
     T: Ord + Copy + TryIntoIndex + 'a,
     ITER: DoubleEndedIterator<Item = &'a T>,
 {
     let mut sorted_vector: Vec<T> = vec![*min_value; length];
     for value in iterator.rev() {
-        let index_count_vector = T::try_into_index(value, min_value)?;
-        let mut index = count_vector[index_count_vector];
-        index -= 1;
-        count_vector[index_count_vector] = index;
-        sorted_vector[index] = *value;
+        let index_count_vector_result = T::try_into_index(value, min_value);
+        if index_count_vector_result.is_err() {
+            return Err(CountingSortError::from_try_into_index_failed());
+        } else {
+            // index_count_vector_result is ok, unwrapping is safe
+            let index_count_vector = index_count_vector_result.unwrap_or(0);
+            if index_count_vector >= count_vector.len() {
+                return Err(CountingSortError::from_index_out_of_bounds());
+            }
+            let mut index = count_vector[index_count_vector];
+            index -= 1;
+            count_vector[index_count_vector] = index;
+            sorted_vector[index] = *value;
+        }
     }
     Ok(sorted_vector)
 }
@@ -302,21 +445,35 @@ fn count_values<'a, ITER, T>(
     iterator: &mut ITER,
     min_value: &T,
     max_value: &T,
-) -> Result<Vec<usize>, <T as TryIntoIndex>::Error>
+) -> Result<Vec<usize>, CountingSortError>
 where
     ITER: Iterator<Item = &'a T>,
     T: Ord + Copy + TryIntoIndex + 'a,
 {
-    let length = T::try_into_index(max_value, min_value)? + 1;
-    let mut count_vector: Vec<usize> = vec![0; length];
+    let distance_result = T::try_into_index(max_value, min_value);
+    if distance_result.is_ok() {
+        // distance_result is okay so unwrapping is safe
+        let length = distance_result.unwrap_or(0) + 1;
+        let mut count_vector: Vec<usize> = vec![0; length];
 
-    for value in iterator {
-        let index = T::try_into_index(value, min_value)?;
-        let new_count_value = count_vector[index] + 1;
-        count_vector[index] = new_count_value;
+        for value in iterator {
+            let index_result = T::try_into_index(value, min_value);
+            if index_result.is_err() {
+                return Err(CountingSortError::from_try_into_index_failed());
+            } else {
+                // index_result is ok, unwrapping is safe
+                let index = index_result.unwrap_or(0);
+                if index >= count_vector.len() {
+                    return Err(CountingSortError::from_index_out_of_bounds());
+                }
+                let new_count_value = count_vector[index] + 1;
+                count_vector[index] = new_count_value;
+            }
+
+        }
+        return Ok(count_vector);
     }
-
-    Ok(count_vector)
+    return Err(CountingSortError::from_try_into_index_failed());
 }
 
 #[inline]
@@ -594,6 +751,29 @@ mod unit_tests {
         assert_eq!(
             "There are no element available in the iterator",
             format!("{}", result.unwrap_err())
+        );
+        let test_vector: Vec<u8> = vec![];
+        let result = counting_sort_min_max(test_vector.iter(), &0, &1);
+        assert!(result.is_ok());
+        assert_eq!(test_vector, result.unwrap());
+    }
+
+    #[test]
+    fn test_incorrect_given_min_max_values() {
+        let vec = vec![4, 3, 2, 1];
+
+        let error = vec.iter().cnt_sort_min_max(&2, &4);
+        assert!(error.is_err());
+        assert_eq!(
+            "Conversion into index failed",
+            format!("{}", error.unwrap_err())
+        );
+
+        let error = vec.iter().cnt_sort_min_max(&1, &3);
+        assert!(error.is_err());
+        assert_eq!(
+            "Index is out of bounds, most likely the given maximum value is too small",
+            format!("{}", error.unwrap_err())
         );
     }
 
