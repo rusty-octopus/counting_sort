@@ -68,13 +68,15 @@
 #![warn(missing_doc_code_examples)]
 
 // Todos:
-// 0. Doc + Doc tests for all public methods
-// 1. Source code comments as "design notes", e.g. why "only" i32 not i64
-// 2. Test for map, usize, isize??? Test for keeping order?
-// 3. Do this for TryIntoIndex? : Sized + core::ops::Sub<Output=Self>
-// 3. code coverage with kcov?
-// 4. Profile
-// 5. Optimizations
+// 0. Move benchmark into own library due to long build and test times
+// 1. Test stable sort
+// 2. Readme.md => how to "use", design notes, performance table / diagram / code coverage
+// 3. Source code comments as "design notes", e.g. why "only" i32 not i64
+// 4. Test for map, usize, isize??? Test for keeping order?
+// 5. Do this for TryIntoIndex? : Sized + core::ops::Sub<Output=Self>
+// 6. code coverage with kcov?
+// 7. Profile
+// 8. Optimizations
 //    * Combine slide window and re_order into one step?
 //    * Drain the iterator on count_values, this means trait bound DoubleEndedIterator can be lifted
 //       * Is primarily needed for keeping the original order (is the order important?)
@@ -84,10 +86,9 @@
 //    * Copy elements into vector may result in less copies of the element
 //    * currently 2-3 copies per element due to TryInto
 //    * T:Clone instead of T copy?
-// 6. Analyze / Inspect / Evaluate, or add more errors + 2 versions (abort when too much memory or execute anyway)
+// 9. Analyze / Inspect / Evaluate, or add more errors + 2 versions (abort when too much memory or execute anyway)
 //    * Used memory and runtime
-// 7. Move benchmark into own library due to long build and test times
-// 8. Publish?
+// 10. Publish?
 
 use core::cmp::{max, min, Ord};
 use core::convert::TryInto;
@@ -172,7 +173,7 @@ impl CountingSortError {
 /// and [`Sized`](https://doc.rust-lang.org/std/marker/trait.Sized.html). If your collection does provide these,
 /// you can simply implement this trait "empty":
 ///
-/// ```rust,no_run,ignore
+/// ```rust,compile_fail
 /// impl CountingSort for YourType {}
 /// ```
 ///
@@ -306,8 +307,83 @@ where
 {
 }
 
+/// The interface for converting values into an index.
+///
+/// Index is always [`usize`](https://doc.rust-lang.org/std/primitive.usize.html). Unfortunatelly
+/// [`TryInto`](https://doc.rust-lang.org/std/convert/trait.TryInto.html) for
+/// [`usize`](https://doc.rust-lang.org/std/primitive.usize.html) is not sufficient since signed
+/// integers overflow when calculating `max_value - min_value`. Therefore this trait was added to
+/// implement an non-overflowing conversion to [`usize`](https://doc.rust-lang.org/std/primitive.usize.html).
+///
+/// You can implement this trait yourself as long as there is a natural conversion from your type to
+/// [`usize`](https://doc.rust-lang.org/std/primitive.usize.html). However it must hold for your type that if
+/// `t_1 <= t_2` then `YourType::try_into_index(t_1, min_value)? <= YourType::try_into_index(t_2, min_value)?`.
+/// Also consider that the size [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html) that holds the
+/// frequency of all elements in the collection is calculated like this
+///
+/// ```rust,compile_fail
+/// let length = YourType::try_into_index(max_value,min_value)? + 1;
+/// ```
+///
+/// It is not highly recommended to do this if your type's order is not simply dependent on one integer value
+/// of your struct.
+///
+/// # Example
+///
+/// ```rust
+/// use core::cmp::{Ord, Ordering};
+/// use counting_sort::TryIntoIndex;
+///
+/// #[derive(Copy, Clone)]
+/// struct Person {
+///     name: &'static str,
+///     id: usize
+/// }
+///
+/// impl Ord for Person {
+///     fn cmp(&self, other: &Self) -> Ordering {
+///         self.id.cmp(&other.id)
+///     }
+/// }
+///
+/// impl PartialOrd for Person {
+///     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+///         Some(self.cmp(other))
+///     }
+/// }
+///
+/// impl PartialEq for Person {
+///     fn eq(&self, other: &Self) -> bool {
+///         self.id == other.id
+///     }
+/// }
+///
+/// impl Eq for Person {}
+///
+/// impl TryIntoIndex for Person {
+///     type Error = &'static str;
+///     
+///     fn try_into_index(value: &Self, min_value: &Self) -> Result<usize, Self::Error> {
+///         Ok(value.id - min_value.id)
+///     }
+/// }
+///
+/// let john = Person { name: "John", id: 1234 };
+/// let min_value = Person { name: "Jim", id: 234 };
+/// let index_result = Person::try_into_index(&john, &min_value);
+/// assert!(index_result.is_ok());
+/// assert_eq!(1000, index_result.unwrap_or(0));
+/// ```
 pub trait TryIntoIndex {
+    /// The type returned whenever the conversion into an index failed.
     type Error;
+
+    /// Tries to convert the value into an index.
+    ///
+    /// The `min_value` parameter is for calculating the offset between the actual value
+    /// and the minimum value. This concept is used in order to only allocate a
+    /// [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html) that only covers the
+    /// distance between the maximum value and the minimum value of the collection.
     fn try_into_index(value: &Self, min_value: &Self) -> Result<usize, Self::Error>;
 }
 
@@ -367,6 +443,9 @@ macro_rules! try_into_index_impl_for_small_unsigned {
 try_into_index_impl_for_signed!(i8, i16);
 try_into_index_impl_for_signed!(i16, i32);
 try_into_index_impl_for_signed!(i32, i64);
+// i64 was not added, since i64 could be larger than usize and can also 
+// result in huge memory consumption if the distance between max_value and
+// min_value of the collection is huge.
 
 // macro instances for small unsigned integer implementation of TryIntoIndex
 try_into_index_impl_for_small_unsigned!(u8);
@@ -375,6 +454,9 @@ try_into_index_impl_for_small_unsigned!(u16);
 // macro instances for unsigned integer implementation of TryIntoIndex
 try_into_index_impl_for_unsigned!(u32);
 try_into_index_impl_for_unsigned!(usize);
+// u64 was not added, since i64 could be larger than usize and can also 
+// result in huge memory consumption if the distance between max_value and
+// min_value of the collection is huge.
 
 #[inline]
 fn counting_sort<'a, ITER, T>(iterator: ITER) -> Result<Vec<T>, CountingSortError>
@@ -513,6 +595,7 @@ where
     None
 }
 
+#[cfg_attr(tarpaulin, skip)]
 #[cfg(test)]
 mod unit_tests {
 
@@ -805,8 +888,17 @@ mod unit_tests {
         let result = counting_sort_min_max(test_vector.iter(), &min_value, &max_value);
         assert!(result.is_err());
         assert_eq!(
-            "Conversion into index failed",
-            format!("{}", result.unwrap_err())
+            CountingSortError::from_try_into_index_failed().to_string(),
+            result.unwrap_err().to_string()
+        );
+
+        let mut count_vector = vec![0, 0];
+        let test_vector = vec![max_value, min_value];
+        let result = re_order(test_vector.iter(), &mut count_vector, 2, &min_value);
+        assert!(result.is_err());
+        assert_eq!(
+            CountingSortError::from_try_into_index_failed().to_string(),
+            result.unwrap_err().to_string()
         );
     }
 
@@ -833,5 +925,17 @@ mod unit_tests {
         let result = counting_sort_min_max(test_vector.iter(), &min_value, &max_value);
         assert!(result.is_ok());
         assert_eq!(test_vector, result.unwrap());
+    }
+
+    #[test]
+    fn test_re_order_index_out_of_bounds_error() {
+        let vec = vec![1, 2];
+        let mut count_vector = vec![1];
+        let result = re_order(vec.iter(), &mut count_vector, 2, &1);
+        assert!(result.is_err());
+        assert_eq!(
+            CountingSortError::from_index_out_of_bounds().to_string(),
+            result.unwrap_err().to_string()
+        );
     }
 }
