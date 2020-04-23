@@ -68,7 +68,8 @@
 #![warn(missing_doc_code_examples)]
 
 // Todos:
-// 1. Readme.md => how to "use", design notes, performance table / diagram / code coverage
+// 1. Readme.md => how to "use", design notes, performance table / diagram, code coverage
+//      * Design notes: learn rust, usability & generic, safety before performance
 // 2. Test for map, usize, isize???
 // 3. Profile
 // 4. Optimizations
