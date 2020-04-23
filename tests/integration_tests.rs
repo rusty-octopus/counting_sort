@@ -207,3 +207,66 @@ fn test_does_not_panic_with_signed() {
     let sorted_vector = vector.iter().cnt_sort().unwrap();
     assert_eq!(vector, sorted_vector);
 }
+
+#[test]
+fn test_stable_sort() {
+    use core::cmp::{Ord, Ordering};
+    use counting_sort::TryIntoIndex;
+
+    #[derive(Copy, Clone, Debug)]
+    struct Person {
+        name: &'static str,
+        id: usize,
+    }
+
+    impl Ord for Person {
+        fn cmp(&self, other: &Self) -> Ordering {
+            self.id.cmp(&other.id)
+        }
+    }
+
+    impl PartialOrd for Person {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+            Some(self.cmp(other))
+        }
+    }
+
+    impl PartialEq for Person {
+        fn eq(&self, other: &Self) -> bool {
+            self.id == other.id
+        }
+    }
+
+    impl Eq for Person {}
+
+    impl TryIntoIndex for Person {
+        type Error = &'static str;
+
+        fn try_into_index(value: &Self, min_value: &Self) -> Result<usize, Self::Error> {
+            Ok(value.id - min_value.id)
+        }
+    }
+
+    let first = Person {
+        name: "first",
+        id: 3,
+    };
+    let second = Person {
+        name: "second",
+        id: 1,
+    };
+    let third = Person {
+        name: "third",
+        id: 1,
+    };
+    let fourth = Person {
+        name: "fourth",
+        id: 2,
+    };
+
+    let vec = vec![first, second, third, fourth];
+
+    let sorted_vec = vec.iter().cnt_sort().unwrap();
+
+    assert_eq!(vec![second, third, fourth, first], sorted_vec);
+}

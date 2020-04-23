@@ -443,7 +443,7 @@ macro_rules! try_into_index_impl_for_small_unsigned {
 try_into_index_impl_for_signed!(i8, i16);
 try_into_index_impl_for_signed!(i16, i32);
 try_into_index_impl_for_signed!(i32, i64);
-// i64 was not added, since i64 could be larger than usize and can also 
+// i64 was not added, since i64 could be larger than usize and can also
 // result in huge memory consumption if the distance between max_value and
 // min_value of the collection is huge.
 
@@ -454,7 +454,7 @@ try_into_index_impl_for_small_unsigned!(u16);
 // macro instances for unsigned integer implementation of TryIntoIndex
 try_into_index_impl_for_unsigned!(u32);
 try_into_index_impl_for_unsigned!(usize);
-// u64 was not added, since i64 could be larger than usize and can also 
+// u64 was not added, since i64 could be larger than usize and can also
 // result in huge memory consumption if the distance between max_value and
 // min_value of the collection is huge.
 
