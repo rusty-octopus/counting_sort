@@ -68,15 +68,10 @@
 #![warn(missing_doc_code_examples)]
 
 // Todos:
-// 0. Move benchmark into own library due to long build and test times
-// 1. Test stable sort
-// 2. Readme.md => how to "use", design notes, performance table / diagram / code coverage
-// 3. Source code comments as "design notes", e.g. why "only" i32 not i64
-// 4. Test for map, usize, isize??? Test for keeping order?
-// 5. Do this for TryIntoIndex? : Sized + core::ops::Sub<Output=Self>
-// 6. code coverage with kcov?
-// 7. Profile
-// 8. Optimizations
+// 1. Readme.md => how to "use", design notes, performance table / diagram / code coverage
+// 2. Test for map, usize, isize???
+// 3. Profile
+// 4. Optimizations
 //    * Combine slide window and re_order into one step?
 //    * Drain the iterator on count_values, this means trait bound DoubleEndedIterator can be lifted
 //       * Is primarily needed for keeping the original order (is the order important?)
@@ -86,9 +81,7 @@
 //    * Copy elements into vector may result in less copies of the element
 //    * currently 2-3 copies per element due to TryInto
 //    * T:Clone instead of T copy?
-// 9. Analyze / Inspect / Evaluate, or add more errors + 2 versions (abort when too much memory or execute anyway)
-//    * Used memory and runtime
-// 10. Publish?
+// 5. Publish?
 
 use core::cmp::{max, min, Ord};
 use core::convert::TryInto;
