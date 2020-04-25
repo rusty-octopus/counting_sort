@@ -917,7 +917,6 @@ mod unit_tests {
     }
 }
 
-#[cfg(test)]
 #[cfg_attr(tarpaulin, skip)]
 #[cfg(doctest)]
 macro_rules! doc_check {
@@ -927,7 +926,6 @@ macro_rules! doc_check {
     };
 }
 
-#[cfg(test)]
 #[cfg_attr(tarpaulin, skip)]
 #[cfg(doctest)]
 doc_check!(include_str!("../README.md"));
