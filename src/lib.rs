@@ -31,7 +31,7 @@
 //! ```rust
 //! /*
 //!  * Add counting sort to your source code.
-//!  * counting sort immediatelly works "out of the box"
+//!  * counting sort immediately works "out of the box"
 //!  * for all DoubleEndedIterators and integers like
 //!  * u8, i8, u16, i16.
 //!  */
@@ -66,23 +66,6 @@
 
 #![warn(missing_docs)]
 #![warn(missing_doc_code_examples)]
-
-// Todos:
-// 1. Readme.md => how to "use", design notes, performance table / diagram, code coverage
-//      * Design notes: learn rust, usability & generic, safety before performance
-// 2. Test for map, usize, isize???
-// 3. Profile
-// 4. Optimizations
-//    * Combine slide window and re_order into one step?
-//    * Drain the iterator on count_values, this means trait bound DoubleEndedIterator can be lifted
-//       * Is primarily needed for keeping the original order (is the order important?)
-//       * If iterator is not traversed back to front, then the elements are sorted in reverse order, this is strange
-//       * Draining the iterator will "destroy" the original collection which is devastating when an error happens
-//       * However, the elements could be swapped instead of copied into the new Vec
-//    * Copy elements into vector may result in less copies of the element
-//    * currently 2-3 copies per element due to TryInto
-//    * T:Clone instead of T copy?
-// 5. Publish?
 
 use core::cmp::{max, min, Ord};
 use core::convert::TryInto;
@@ -933,3 +916,14 @@ mod unit_tests {
         );
     }
 }
+
+#[cfg(doctest)]
+macro_rules! doc_check {
+    ($x:expr) => {
+        #[doc = $x]
+        extern {}
+    };
+}
+
+#[cfg(doctest)]
+doc_check!(include_str!("../README.md"));

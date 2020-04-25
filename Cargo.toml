@@ -1,6 +1,6 @@
 [package]
 name = "counting_sort"
-version = "0.9.0"
+version = "1.0.0"
 authors = ["Philipp Werner <p.a.werner@posteo.de>"]
 edition = "2018"
 
