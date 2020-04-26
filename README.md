@@ -29,6 +29,20 @@ assert!(sorted_vec_result.is_ok());
 assert_eq!(vec![1,2,3,4], sorted_vec_result.unwrap());
 ```
 
+## Code coverage
+
+```console
+[INFO tarpaulin] Coverage Results:
+|| Uncovered Lines:
+|| src/lib.rs: 118
+|| Tested/Total Lines:
+|| src/lib.rs: 83/84 +0%
+||
+98.81% coverage, 83/84 lines covered, +0% change in coverage
+```
+
+## License
+
 ## Design goals
 
 1. Learn more Rust on a simple algorithm
@@ -47,6 +61,15 @@ assert_eq!(vec![1,2,3,4], sorted_vec_result.unwrap());
 6. Safety over performance
     * E.g. I'll check that no index is out of bounds, although this should only happen when a user uses the `cnt_sort_min_max` method with a too small maximum value and Rust panics when the index is out of bounds
 
+## Design decisions
+
+### Why DoubleEndedIterator
+
+* Why not Iterator? (Does a HashSet sort makes sense)?
+* Why not move out the elements? (potentially destroy the collection)
+  * Always return the vec unsorted or partially sorted? Strange since you expect it
+    to be sorted
+
 ## Asymptotic performance
 
 1. Iterates all `n` elements and checks if this value is the new minimum value or maximum value
@@ -60,23 +83,87 @@ Therefore the asymptotic performance is `O(3n+d)`. When using the `cnt_sort_min_
 
 ## Benchmarks
 
-## Code coverage
+### HW
 
 ```console
-[INFO tarpaulin] Coverage Results:
-|| Uncovered Lines:
-|| src/lib.rs: 118
-|| Tested/Total Lines:
-|| src/lib.rs: 83/84 +0%
-||
-98.81% coverage, 83/84 lines covered, +0% change in coverage
+Architecture:                    x86_64
+CPU op-mode(s):                  32-bit, 64-bit
+Byte Order:                      Little Endian
+Address sizes:                   36 bits physical, 48 bits virtual
+CPU(s):                          4
+On-line CPU(s) list:             0-3
+Thread(s) per core:              2
+Core(s) per socket:              2
+Socket(s):                       1
+NUMA node(s):                    1
+Vendor ID:                       GenuineIntel
+CPU family:                      6
+Model:                           42
+Model name:                      Intel(R) Core(TM) i5-2410M CPU @ 2.30GHz
+Stepping:                        7
+CPU MHz:                         1721.799
+CPU max MHz:                     2900,0000
+CPU min MHz:                     800,0000
+BogoMIPS:                        4591.83
+Virtualization:                  VT-x
+L1d cache:                       64 KiB
+L1i cache:                       64 KiB
+L2 cache:                        512 KiB
+L3 cache:                        3 MiB
+NUMA node0 CPU(s):               0-3
+Vulnerability Itlb multihit:     KVM: Mitigation: Split huge pages
+Vulnerability L1tf:              Mitigation; PTE Inversion; VMX conditional cache flushes, SMT vulnerable
+Vulnerability Mds:               Mitigation; Clear CPU buffers; SMT vulnerable
+Vulnerability Meltdown:          Mitigation; PTI
+Vulnerability Spec store bypass: Mitigation; Speculative Store Bypass disabled via prctl and seccomp
+Vulnerability Spectre v1:        Mitigation; usercopy/swapgs barriers and __user pointer sanitization
+Vulnerability Spectre v2:        Mitigation; Full generic retpoline, IBPB conditional, IBRS_FW, STIBP conditional, RSB filling
+Vulnerability Tsx async abort:   Not affected
+Flags:                           fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ht tm pbe syscall nx rdtscp l
+                                 m constant_tsc arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf pni pclmulqdq dtes64 monitor ds_cpl vmx est tm
+                                 2 ssse3 cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic popcnt tsc_deadline_timer aes xsave avx lahf_lm epb pti ssbd ibrs ibpb stibp tpr_shadow
+                                  vnmi flexpriority ept vpid xsaveopt dtherm ida arat pln pts md_clear flush_l1d
 ```
 
-## License
+### sorting u8
+
+* Average execution time
+* Distance: 256
+  * minimum value 0
+  * maximum value 256
+
+|# elements|cnt_sort|cnt_sort_min_max|vector.sort|sort_u8|
+|---------:|-------:|---------------:|----------:|------:|
+|     20000|   78 us|           62 us|    1048 us|  27 us|
+|     40000|  160 us|          122 us|    2239 us|  55 us|
+|     60000|  243 us|          180 us|    3502 us|  82 us|
+|     80000|  319 us|          241 us|    4761 us| 109 us|
+|    100000|  392 us|          298 us|    6152 us| 137 us|
+
+![Lines u8](lines_u8.svg)
+
+### sorting u16
+
+* Average execution time
+* Distance: 512
+  * minimum value  512
+  * maximum value 1024
+  * This is an ideal solution for this counting sort implementation
+
+|# elements|cnt_sort|cnt_sort_min_max|vector.sort|sort_u16|
+|---------:|-------:|---------------:|----------:|-------:|
+|     20000|   89 us|           70 us|    1050 us|   95 us|
+|     40000|  186 us|          148 us|    2246 us|  123 us|
+|     60000|  278 us|          223 us|    3515 us|  148 us|
+|     80000|  371 us|          297 us|    4781 us|  174 us|
+|    100000|  465 us|          371 us|    6204 us|  202 us|
+
+![Lines u16](lines_u16.svg)
 
 ## Todos
 
-1. Performance table / diagram
+0. Finalize README.md
+1. Rename count_values to histogram?
 2. Profile
 3. Optimizations
    * Combine slide window and re_order into one step?
