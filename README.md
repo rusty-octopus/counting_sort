@@ -43,6 +43,8 @@ assert_eq!(vec![1,2,3,4], sorted_vec_result.unwrap());
 
 ## License
 
+[MIT license](LICENSE).
+
 ## Design goals
 
 1. Learn more Rust on a simple algorithm
@@ -175,4 +177,4 @@ Flags:                           fpu vme de pse tsc msr pae mce cx8 apic sep mtr
    * Copy elements into vector may result in less copies of the element
    * currently 2-3 copies per element due to TryInto
    * T:Clone instead of T copy?
-4. Publish? License?
+4. Publish?
