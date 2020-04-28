@@ -12,6 +12,8 @@ mod integration_tests {
 
     use std::fmt::Display;
 
+    use std::collections::HashSet;
+
     #[test]
     fn test_with_list() {
         let mut list = LinkedList::new();
@@ -262,5 +264,21 @@ mod integration_tests {
         let sorted_vec = vec.iter().cnt_sort().unwrap();
 
         assert_eq!(vec![second, third, fourth, first], sorted_vec);
+    }
+
+    #[test]
+    fn test_hash_set() {
+        let mut set = HashSet::new();
+        set.insert(4);
+        set.insert(3);
+        set.insert(2);
+        set.insert(4);
+
+        let result = set.iter().cnt_sort();
+
+        assert!(result.is_ok());
+
+        assert_eq!(vec![2,3,4], result.unwrap());
+
     }
 }

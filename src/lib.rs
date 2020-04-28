@@ -167,7 +167,7 @@ impl CountingSortError {
 pub trait CountingSort<'a, T>
 where
     T: Ord + Copy + TryIntoIndex + 'a,
-    Self: Clone + Sized + DoubleEndedIterator<Item = &'a T>,
+    Self: Clone + Sized + Iterator<Item = &'a T>,
 {
     /// Sorts the elements in the
     /// [`DoubleEndedIterator`](https://doc.rust-lang.org/std/iter/trait.DoubleEndedIterator.html)
@@ -280,7 +280,7 @@ where
 impl<'a, T, ITER> CountingSort<'a, T> for ITER
 where
     T: Ord + Copy + TryIntoIndex + 'a,
-    ITER: Sized + DoubleEndedIterator<Item = &'a T> + Clone,
+    ITER: Sized + Iterator<Item = &'a T> + Clone,
 {
 }
 
@@ -438,7 +438,7 @@ try_into_index_impl_for_unsigned!(usize);
 #[inline]
 fn counting_sort<'a, ITER, T>(iterator: ITER) -> Result<Vec<T>, CountingSortError>
 where
-    ITER: DoubleEndedIterator<Item = &'a T> + Clone,
+    ITER: Iterator<Item = &'a T> + Clone,
     T: Ord + Copy + TryIntoIndex + 'a,
 {
     let optional_tuple = get_min_max(&mut iterator.clone());
@@ -457,7 +457,7 @@ fn counting_sort_min_max<'a, ITER, T>(
     max_value: &T,
 ) -> Result<Vec<T>, CountingSortError>
 where
-    ITER: DoubleEndedIterator<Item = &'a T> + Clone,
+    ITER: Iterator<Item = &'a T> + Clone,
     T: Ord + Copy + TryIntoIndex + 'a,
 {
     if min_value == max_value {
@@ -483,10 +483,10 @@ fn re_order<'a, T, ITER>(
 ) -> Result<Vec<T>, CountingSortError>
 where
     T: Ord + Copy + TryIntoIndex + 'a,
-    ITER: DoubleEndedIterator<Item = &'a T>,
+    ITER: Iterator<Item = &'a T>,
 {
     let mut sorted_vector: Vec<T> = vec![*min_value; length];
-    for value in iterator.rev() {
+    for value in iterator {
         let index_count_vector_result = T::try_into_index(value, min_value);
         if index_count_vector_result.is_err() {
             return Err(CountingSortError::from_try_into_index_failed());
@@ -498,8 +498,8 @@ where
             }
             let mut index = count_vector[index_count_vector];
             index -= 1;
-            count_vector[index_count_vector] = index;
             sorted_vector[index] = *value;
+            count_vector[index_count_vector] = index;
         }
     }
     Ok(sorted_vector)

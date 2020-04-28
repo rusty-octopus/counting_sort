@@ -62,6 +62,12 @@ assert_eq!(vec![1,2,3,4], sorted_vec_result.unwrap());
     * The idea is to support counting sort algorithm for [`u32`](https://doc.rust-lang.org/std/primitive.u32.html) and [`i32`](https://doc.rust-lang.org/std/primitive.i32.html) without allocating `2³²-1` [`usize`](https://doc.rust-lang.org/std/primitive.usize.html) integers if the distance `d = max_value - min_value` is smaller than that.
 6. Safety over performance
     * E.g. I'll check that no index is out of bounds, although this should only happen when a user uses the `cnt_sort_min_max` method with a too small maximum value and Rust panics when the index is out of bounds
+7. Not destroying the original collection:
+    * The implementation can fail, especially during the conversion into an index
+    * Therefore the elements are not moved out of the original collection but copied during iteration
+8. Usage of [`DoubleEndedIterator`](https://doc.rust-lang.org/std/iter/trait.DoubleEndedIterator.html)
+    * Is needed for the stability of the sort, since the re-order phase must be done from last to first element, otherwise elements would be in reverse order (on the other hand, the main use case of this trait is sorting a lot of integers that do not really have an order)
+    * Usage of a "plain" [Iterator](https://doc.rust-lang.org/std/iter/trait.Iterator.html) would be possible to enable counting sort for more collections, but counting sort for e.g. [HashSet](https://doc.rust-lang.org/std/collections/struct.HashSet.html)'s is sub-optimal since every element does only exist once in a [HashSet](https://doc.rust-lang.org/std/collections/struct.HashSet.html)
 
 ## Design decisions
 
@@ -84,6 +90,8 @@ assert_eq!(vec![1,2,3,4], sorted_vec_result.unwrap());
 Therefore the asymptotic performance is `O(3n+d)`. When using the `cnt_sort_min_max` function (when the minimum and maximum value is known) then the asymptotic performance is `O(2n+d)`.
 
 ## Benchmarks
+
+* Comparison to [slice.sort](https://doc.rust-lang.org/std/primitive.slice.html#method.sort) and [count_sort](https://crates.io/crates/count_sort)
 
 ### HW
 
@@ -164,17 +172,6 @@ Flags:                           fpu vme de pse tsc msr pae mce cx8 apic sep mtr
 
 ## Todos
 
-0. Finalize README.md
-1. Rename count_values to histogram?
+1. Update documentation: iterator!
 2. Profile
-3. Optimizations
-   * Combine slide window and re_order into one step?
-   * Drain the iterator on count_values, this means trait bound DoubleEndedIterator can be lifted
-      * Is primarily needed for keeping the original order (is the order important?)
-      * If iterator is not traversed back to front, then the elements are sorted in reverse order, this is strange
-      * Draining the iterator will "destroy" the original collection which is devastating when an error happens
-      * However, the elements could be swapped instead of copied into the new Vec
-   * Copy elements into vector may result in less copies of the element
-   * currently 2-3 copies per element due to TryInto
-   * T:Clone instead of T copy?
-4. Publish?
+3. Publish?
