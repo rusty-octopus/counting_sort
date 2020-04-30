@@ -1,8 +1,12 @@
 [package]
 name = "counting_sort"
 version = "1.0.0"
-authors = ["Philipp Werner <p.a.werner@posteo.de>"]
+authors = ["rusty-octopus <octopus@posteo.net>"]
 edition = "2018"
+license-file = "LICENSE"
+readme = "README.md"
+description = "Counting sort implementation for Iterators"
+repository = "https://github.com/rusty-octopus/counting_sort"
 
 [dependencies]
 
