@@ -1,6 +1,6 @@
 # Counting Sort
 
-A counting sort implementation for [`DoubleEndedIterator`](https://doc.rust-lang.org/std/iter/trait.DoubleEndedIterator.html)s.
+A counting sort implementation for [`Iterator`](https://doc.rust-lang.org/std/iter/trait.Iterator.html)s.
 
 ## Usage
 
@@ -65,18 +65,35 @@ assert_eq!(vec![1,2,3,4], sorted_vec_result.unwrap());
 7. Not destroying the original collection:
     * The implementation can fail, especially during the conversion into an index
     * Therefore the elements are not moved out of the original collection but copied during iteration
-8. Usage of [`DoubleEndedIterator`](https://doc.rust-lang.org/std/iter/trait.DoubleEndedIterator.html)
-    * Is needed for the stability of the sort, since the re-order phase must be done from last to first element, otherwise elements would be in reverse order (on the other hand, the main use case of this trait is sorting a lot of integers that do not really have an order)
-    * Usage of a "plain" [Iterator](https://doc.rust-lang.org/std/iter/trait.Iterator.html) would be possible to enable counting sort for more collections, but counting sort for e.g. [HashSet](https://doc.rust-lang.org/std/collections/struct.HashSet.html)'s is sub-optimal since every element does only exist once in a [HashSet](https://doc.rust-lang.org/std/collections/struct.HashSet.html)
 
-## Design decisions
+## Stable counting sort
 
-### Why DoubleEndedIterator
+* Counting sort is a stable algorithm
+* One option to achieve this is to reverse iterate the collection (and hence the need for a [DoubleEndedIterator](https://doc.rust-lang.org/std/iter/trait.DoubleEndedIterator.html))
+* Another option is possible when all elements are an integer, and it combines two loops, see a short description [here](https://en.wikipedia.org/wiki/Counting_sort#Variant_algorithms)
+  * Since there is no Integer trait, this option was not possible if the implementation is aimed to be as generic as possible (without implementing everything as a macro)
+* In this alogorithm another option is implemented:
 
-* Why not Iterator? (Does a HashSet sort makes sense)?
-* Why not move out the elements? (potentially destroy the collection)
-  * Always return the vec unsorted or partially sorted? Strange since you expect it
-    to be sorted
+1. In the count values vector (or actually the cumulative frequency) an additional element is allocated, representing the value which preceeds the minimum value
+    * This element obviously does not exist and is only used in the re-ordering phase
+    * The element is allocated with value 0
+2. During the calculation of the histogram of all existing values (or more precisely their mapped value to an index) this 0-th element is never accessed
+3. During the calculation of the cumulative frequency (or prefix sum) this element is used, but its value is 0, so it does not change anything
+4. During the re-ordering of the given collection (the last phase of the algorithm) a trick is applied
+    1. When re-ordering each element, it does actually use the cumulative ferquency of the preceeding element to calculate the position of the element in the sorted output vector
+    2. This is due to fact, that an additional element is allocated at the "beginning" of the count values vector (or cumulative frequency vector)
+    3. In order to understand this, it makes sense to look at [this](https://www.cs.usfca.edu/~galles/visualization/CountingSort.html) pretty nice visualisation of the counting sort algorithm
+        * During the re-ordering, an element from the "back" of the collection is "taken"
+        * This element is then converted to an index (in the above visualization the element is identical to the index)
+        * With this index the cumulative frequency of the element is used to calculate the position of the element in the sorted output vector
+        * This calculation is done by decrementing the cumulative frequency by one
+        * In this way, the fact that first element of a vector is the 0-the element is considered
+        * Additionally it is needed to achieve the stability of the sort, elements keep their order even after the sort
+        * When each of the elements, which are equivalent, i.e. they are in an equivalence class, were put into the output vector, the (potentially multiple times decremented) cumulative frequency of this element equals the unmodified cumulative frequency of the preceeding element
+        * And this frequency is actually the position of the first element of the above mentioned equivalence class
+        * Therefore it is possible to use the cumulative frequency of the preceeding element to calculate the position of the element in the output sorted vector
+        * Obviously it is necessary to increment the cumulative frequency of preceeding element, each time an element is put into the sorted output vector, in order to avoid overriding equivalent elements
+        * Final note: the additional allocated element of the cumulative frequency does represent the index of the first minimum value of the collection: zero
 
 ## Asymptotic performance
 
@@ -144,11 +161,11 @@ Flags:                           fpu vme de pse tsc msr pae mce cx8 apic sep mtr
 
 |# elements|cnt_sort|cnt_sort_min_max|vector.sort|sort_u8|
 |---------:|-------:|---------------:|----------:|------:|
-|     20000|   78 us|           62 us|    1048 us|  27 us|
-|     40000|  160 us|          122 us|    2239 us|  55 us|
-|     60000|  243 us|          180 us|    3502 us|  82 us|
-|     80000|  319 us|          241 us|    4761 us| 109 us|
-|    100000|  392 us|          298 us|    6152 us| 137 us|
+|     20000|   82 us|           63 us|    1048 us|  27 us|
+|     40000|  161 us|          123 us|    2239 us|  55 us|
+|     60000|  244 us|          185 us|    3513 us|  82 us|
+|     80000|  323 us|          248 us|    4761 us| 109 us|
+|    100000|  406 us|          310 us|    6180 us| 137 us|
 
 ![Lines u8](lines_u8.svg)
 
@@ -162,16 +179,10 @@ Flags:                           fpu vme de pse tsc msr pae mce cx8 apic sep mtr
 
 |# elements|cnt_sort|cnt_sort_min_max|vector.sort|sort_u16|
 |---------:|-------:|---------------:|----------:|-------:|
-|     20000|   89 us|           70 us|    1050 us|   95 us|
-|     40000|  186 us|          148 us|    2246 us|  123 us|
-|     60000|  278 us|          223 us|    3515 us|  148 us|
-|     80000|  371 us|          297 us|    4781 us|  174 us|
-|    100000|  465 us|          371 us|    6204 us|  202 us|
+|     20000|   89 us|           73 us|    1051 us|   95 us|
+|     40000|  188 us|          172 us|    2250 us|  122 us|
+|     60000|  318 us|          229 us|    3513 us|  148 us|
+|     80000|  382 us|          355 us|    4785 us|  174 us|
+|    100000|  477 us|          392 us|    6200 us|  205 us|
 
 ![Lines u16](lines_u16.svg)
-
-## Todos
-
-1. Update documentation: iterator!
-2. Profile
-3. Publish?

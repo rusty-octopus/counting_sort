@@ -259,11 +259,20 @@ mod integration_tests {
             id: 2,
         };
 
-        let vec = vec![first, second, third, fourth];
+        let vec = vec![first, third, second, fourth];
 
         let sorted_vec = vec.iter().cnt_sort().unwrap();
 
-        assert_eq!(vec![second, third, fourth, first], sorted_vec);
+        assert_eq!(
+            vec![third, second, fourth, first]
+                .iter()
+                .map(|x| x.name)
+                .collect::<Vec<&'static str>>(),
+            sorted_vec
+                .iter()
+                .map(|x| x.name)
+                .collect::<Vec<&'static str>>()
+        );
     }
 
     #[test]
@@ -278,7 +287,6 @@ mod integration_tests {
 
         assert!(result.is_ok());
 
-        assert_eq!(vec![2,3,4], result.unwrap());
-
+        assert_eq!(vec![2, 3, 4], result.unwrap());
     }
 }

@@ -1,11 +1,11 @@
-//! An counting sort implementation for [`DoubleEndedIterator`](https://doc.rust-lang.org/std/iter/trait.DoubleEndedIterator.html)s.
+//! An counting sort implementation for [`Iterator`](https://doc.rust-lang.org/std/iter/trait.Iterator.html)s.
 //!
 //! Provides the trait [`CountingSort`](trait.CountingSort.html) with a blanket implementation for
-//! [`DoubleEndedIterator`](https://doc.rust-lang.org/std/iter/trait.DoubleEndedIterator.html)s
+//! [`Iterator`](https://doc.rust-lang.org/std/iter/trait.Iterator.html)s
 //! for all types `T` that implement (beyond other `std` or `core` traits) the here defined
 //! [`TryIntoIndex`](trait.TryIntoIndex.html) trait.
 //! Types that implement this trait can be tried to be converted to an
-//! [`usize`](https://doc.rust-lang.org/std/primitive.usize.html).
+//! [`usize`](https://doc.rust-lang.org/std/primitive.usize.html), i.e. an index.
 //!
 //! This trait is already implemented for the following integer types:
 //!
@@ -20,11 +20,12 @@
 //! This means for all [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html)s,
 //! [`LinkedList`](https://doc.rust-lang.org/std/collections/struct.LinkedList.html)s,
 //! [`slice`](https://doc.rust-lang.org/std/primitive.slice.html)s or any other
-//! of the implementors of the [`DoubleEndedIterator`](https://doc.rust-lang.org/std/iter/trait.DoubleEndedIterator.html)
+//! of the implementors of the [`Iterator`](https://doc.rust-lang.org/std/iter/trait.Iterator.html)
 //! trait holding one of the above integers types, counting sort can be executed.
 //!
 //! **Note:** Counting sort is also implemented for [`BTreeSet`](https://doc.rust-lang.org/std/collections/struct.BTreeSet.html),
-//! however it makes no sense to execute it there, since all elements are already in order.
+//! however it makes no sense to execute it there, since all elements are already in order and further sorting is completely
+//! useless.
 //!
 //! # Example
 //!
@@ -32,7 +33,7 @@
 //! /*
 //!  * Add counting sort to your source code.
 //!  * counting sort immediately works "out of the box"
-//!  * for all DoubleEndedIterators and integers like
+//!  * for all Iterators and integers like
 //!  * u8, i8, u16, i16.
 //!  */
 //! use counting_sort::CountingSort;
@@ -60,6 +61,9 @@
 //!     * Additionally the current implementation does not consume the given iterator
 //! * This means the counting sort algorithm excels whenever there are a lot of elements to be sorted but the range
 //!   range between minumum value and maximum value is small
+//! * counting sort for e.g. [HashSet](https://doc.rust-lang.org/std/collections/struct.HashSet.html)'s is sub-optimal since every element exists only 
+//!   once in a [HashSet](https://doc.rust-lang.org/std/collections/struct.HashSet.html). Counting sort excels when a lot of elements exist in the
+//!   collection but the number of distinct elements is small.
 //! * **<span style="color:red">Caution:</span>** Be careful using this algorithm when the range between minumum value and maximum value is large
 //! * An excellent illustration about the counting sort algorithm can be found [here](https://www.cs.usfca.edu/~galles/visualization/CountingSort.html)
 //! * Wikipedia article on [counting sort](https://en.wikipedia.org/wiki/Counting_sort)
@@ -144,7 +148,7 @@ impl CountingSortError {
 /// The interface for counting sort algorithm.
 ///
 /// Interface provides blanket implementation of all collections that implement
-/// the [`DoubleEndedIterator`](https://doc.rust-lang.org/std/iter/trait.DoubleEndedIterator.html)
+/// the [`Iterator`](https://doc.rust-lang.org/std/iter/trait.Iterator.html)
 /// trait. These collections must also implement
 /// [`Clone`](https://doc.rust-lang.org/std/clone/trait.Clone.html), since the iterator is iterated several times,
 /// and [`Sized`](https://doc.rust-lang.org/std/marker/trait.Sized.html). If your collection does provide these,
@@ -156,7 +160,7 @@ impl CountingSortError {
 ///
 /// However the intention of this trait is to provide an implementation of all collections that
 /// implement the
-/// [`DoubleEndedIterator`](https://doc.rust-lang.org/std/iter/trait.DoubleEndedIterator.html)
+/// [`Iterator`](https://doc.rust-lang.org/std/iter/trait.Iterator.html)
 /// trait like [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html).
 ///
 /// The types which are held by the collections must implement
@@ -170,7 +174,7 @@ where
     Self: Clone + Sized + Iterator<Item = &'a T>,
 {
     /// Sorts the elements in the
-    /// [`DoubleEndedIterator`](https://doc.rust-lang.org/std/iter/trait.DoubleEndedIterator.html)
+    /// [`Iterator`](https://doc.rust-lang.org/std/iter/trait.Iterator.html)
     /// with the counting sort algorithm.
     ///
     /// This sort is stable (i.e., does not reorder equal elements) and `O(n + d)` worst-case,
@@ -184,9 +188,9 @@ where
     /// **<span style="color:red">Caution:</span>** If distance `d` is large, than memory consumption is large
     /// and you process may run out of memory.
     ///
-    /// This method iterates [`DoubleEndedIterator`](https://doc.rust-lang.org/std/iter/trait.DoubleEndedIterator.html)
+    /// This method iterates [`Iterator`](https://doc.rust-lang.org/std/iter/trait.Iterator.html)
     /// in the beginning to identify the maximum and mimumum value in order to identify the distance `d`. This means
-    /// the runtime is longer due to this additional `n` iterations and the checks needed to identogy the minimum and
+    /// the runtime is longer due to this additional `n` iterations and the checks needed to identify the minimum and
     /// maximum values.
     ///
     /// # Example
@@ -215,7 +219,7 @@ where
     }
 
     /// Sorts the elements in the
-    /// [`DoubleEndedIterator`](https://doc.rust-lang.org/std/iter/trait.DoubleEndedIterator.html)
+    /// [`Iterator`](https://doc.rust-lang.org/std/iter/trait.Iterator.html)
     /// with the counting sort algorithm given the minimum and maximum element of the collection.
     ///
     /// This sort is stable (i.e., does not reorder equal elements) and `O(n + d)` worst-case,
@@ -274,9 +278,9 @@ where
     }
 }
 
-// Counting sort implementation for ITER with trait bound DoubleEndedIterator.
+// Counting sort implementation for ITER with trait bound Iterator.
 // This enables that CountingSort is implemented for all implementors of
-// DoubleEndedIterator, especially for Vec, LinkedList and slice.
+// Iterator, especially for Vec, LinkedList and slice.
 impl<'a, T, ITER> CountingSort<'a, T> for ITER
 where
     T: Ord + Copy + TryIntoIndex + 'a,
@@ -496,9 +500,29 @@ where
             if index_count_vector >= count_vector.len() {
                 return Err(CountingSortError::from_index_out_of_bounds());
             }
+            // 
+            /*
+              Get the cumulative frequency of the value before this.
+              The cumulative frequency of the preceeding value is the index of
+              the first element with this value.
+
+              In order to avoid checks for the index to be 0 (and therefore
+              not to try to access the -1-th element) we allocated the 0-the
+              element additionally so that we can now safely access it.
+              Additionally it holds the index of the next element which
+              equals the minimum value.
+            */
             let mut index = count_vector[index_count_vector];
-            index -= 1;
             sorted_vector[index] = *value;
+            /* 
+              Increment the index so that successive elements with the same value
+              do not override this one.
+              This additionally ensures that the sort is stable.
+              This actually increments the cumulative frequency of the preceeding
+              value. However at the end of the sorting process this frequency will
+              be the cumulative frequency of this value.
+            */
+            index += 1;
             count_vector[index_count_vector] = index;
         }
     }
@@ -517,8 +541,18 @@ where
 {
     let distance_result = T::try_into_index(max_value, min_value);
     if distance_result.is_ok() {
-        // distance_result is okay so unwrapping is safe
-        let length = distance_result.unwrap_or(0) + 1;
+        /*
+          Length must hold all possible distinct values of the collection,
+          this means the complete distance + 1. E.g. the distance of 0 and 255
+          is 255, but there 256 distinct values between 0 and 255.
+
+          We allocate another value in our vector to represent the value that preceeds
+          the minimum value. This value actually does not exist in the collection but
+          is introduced as an optimization for enabling the stable sort of this algorithm
+          without the need of a DoubleEndedIterator and the reverse iteration of the
+          collection when the given collection is re-ordered.
+        */
+        let length = distance_result.unwrap_or(0) + 2; // distance_result is okay so unwrapping is safe
         let mut count_vector: Vec<usize> = vec![0; length];
 
         for value in iterator {
@@ -526,8 +560,15 @@ where
             if index_result.is_err() {
                 return Err(CountingSortError::from_try_into_index_failed());
             } else {
-                // index_result is ok, unwrapping is safe
-                let index = index_result.unwrap_or(0);
+                /*
+                  Always add + 1 to not use the 0-the element in the vector.
+                  This element is just allocated to optimize the re-ordering
+                  of the given collection later on.
+                  The 0-the element does in a way represent the value that preceeds
+                  the minimum value, i.e. this value does not exist in the given
+                  collection.
+                */
+                let index = index_result.unwrap_or(0) + 1; // index_result is ok, unwrapping is safe
                 if index >= count_vector.len() {
                     return Err(CountingSortError::from_index_out_of_bounds());
                 }
@@ -592,12 +633,12 @@ mod unit_tests {
         27, 28, 28, 30,
     ];
 
-    const TEST_COUNT_VALUES_ARRAY: [usize; 30] = [
-        1, 1, 3, 1, 1, 1, 3, 0, 1, 1, 2, 0, 1, 1, 1, 1, 1, 0, 0, 0, 2, 0, 1, 1, 1, 1, 1, 2, 0, 1,
+    const TEST_COUNT_VALUES_ARRAY: [usize; 31] = [
+        0, 1, 1, 3, 1, 1, 1, 3, 0, 1, 1, 2, 0, 1, 1, 1, 1, 1, 0, 0, 0, 2, 0, 1, 1, 1, 1, 1, 2, 0, 1,
     ];
 
-    const TEST_PREFIX_SUM_ARRAY: [usize; 30] = [
-        1, 2, 5, 6, 7, 8, 11, 11, 12, 13, 15, 15, 16, 17, 18, 19, 20, 20, 20, 20, 22, 22, 23, 24,
+    const TEST_PREFIX_SUM_ARRAY: [usize; 31] = [
+        0, 1, 2, 5, 6, 7, 8, 11, 11, 12, 13, 15, 15, 16, 17, 18, 19, 20, 20, 20, 20, 22, 22, 23, 24,
         25, 26, 27, 29, 29, 30,
     ];
 
