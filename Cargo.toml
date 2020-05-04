@@ -7,6 +7,9 @@ license-file = "LICENSE"
 readme = "README.md"
 description = "Counting sort implementation for Iterators"
 repository = "https://github.com/rusty-octopus/counting_sort"
+homepage = "https://github.com/rusty-octopus/counting_sort"
+categories = ["algorithms"]
+keywords = ["sort", "sorting"]
 
 [dependencies]
 
