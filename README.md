@@ -29,6 +29,11 @@ assert!(sorted_vec_result.is_ok());
 assert_eq!(vec![1,2,3,4], sorted_vec_result.unwrap());
 ```
 
+## Release Notes
+
+* 1.0.1
+    * Added `keywords`, `categories` and `license-file` to `Cargo.toml`
+
 ## Code coverage
 
 ```console
