@@ -8,7 +8,7 @@ Add dependency to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-counting_sort = "1.0.0"
+counting_sort = "1.0.1"
 ```
 
 Works immediately "out of the box" for e.g. [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html)s holding integers like [`u8`](https://doc.rust-lang.org/std/primitive.u8.html), [`u16`](https://doc.rust-lang.org/std/primitive.u16.html), [`i8`](https://doc.rust-lang.org/std/primitive.i8.html), [`i16`](https://doc.rust-lang.org/std/primitive.i16.html) etc..
