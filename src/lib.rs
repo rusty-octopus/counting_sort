@@ -61,7 +61,7 @@
 //!     * Additionally the current implementation does not consume the given iterator
 //! * This means the counting sort algorithm excels whenever there are a lot of elements to be sorted but the range
 //!   range between minumum value and maximum value is small
-//! * counting sort for e.g. [HashSet](https://doc.rust-lang.org/std/collections/struct.HashSet.html)'s is sub-optimal since every element exists only 
+//! * counting sort for e.g. [HashSet](https://doc.rust-lang.org/std/collections/struct.HashSet.html)'s is sub-optimal since every element exists only
 //!   once in a [HashSet](https://doc.rust-lang.org/std/collections/struct.HashSet.html). Counting sort excels when a lot of elements exist in the
 //!   collection but the number of distinct elements is small.
 //! * **<span style="color:red">Caution:</span>** Be careful using this algorithm when the range between minumum value and maximum value is large
@@ -446,7 +446,7 @@ where
     T: Ord + Copy + TryIntoIndex + 'a,
 {
     let optional_tuple = get_min_max(&mut iterator.clone());
-    if let Some((min_value,max_value)) = optional_tuple {
+    if let Some((min_value, max_value)) = optional_tuple {
         counting_sort_min_max(iterator, min_value, max_value)
     } else {
         Err(CountingSortError::from_empty_iterator())
@@ -499,7 +499,7 @@ where
             if index_count_vector >= count_vector.len() {
                 return Err(CountingSortError::from_index_out_of_bounds());
             }
-            // 
+            //
             /*
               Get the cumulative frequency of the value before this.
               The cumulative frequency of the preceeding value is the index of
@@ -513,7 +513,7 @@ where
             */
             let mut index = count_vector[index_count_vector];
             sorted_vector[index] = *value;
-            /* 
+            /*
               Increment the index so that successive elements with the same value
               do not override this one.
               This additionally ensures that the sort is stable.
@@ -636,8 +636,8 @@ mod unit_tests {
     ];
 
     const TEST_PREFIX_SUM_ARRAY: [usize; 31] = [
-        0, 1, 2, 5, 6, 7, 8, 11, 11, 12, 13, 15, 15, 16, 17, 18, 19, 20, 20, 20, 20, 22, 22, 23, 24,
-        25, 26, 27, 29, 29, 30,
+        0, 1, 2, 5, 6, 7, 8, 11, 11, 12, 13, 15, 15, 16, 17, 18, 19, 20, 20, 20, 20, 22, 22, 23,
+        24, 25, 26, 27, 29, 29, 30,
     ];
 
     #[test]
