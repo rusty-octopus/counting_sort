@@ -446,8 +446,7 @@ where
     T: Ord + Copy + TryIntoIndex + 'a,
 {
     let optional_tuple = get_min_max(&mut iterator.clone());
-    if optional_tuple.is_some() {
-        let (min_value, max_value) = optional_tuple.unwrap();
+    if let Some((min_value,max_value)) = optional_tuple {
         counting_sort_min_max(iterator, min_value, max_value)
     } else {
         Err(CountingSortError::from_empty_iterator())
@@ -578,18 +577,18 @@ where
         }
         return Ok(count_vector);
     }
-    return Err(CountingSortError::from_try_into_index_failed());
+    Err(CountingSortError::from_try_into_index_failed())
 }
 
 #[inline]
 fn calculate_prefix_sum(count_vector: &mut Vec<usize>) {
     let mut iterator = count_vector.iter_mut();
     // skip first element
-    let first_element = iterator.next();
-    if first_element.is_some() {
-        let mut total = *first_element.unwrap();
+    let optional_first_element = iterator.next();
+    if let Some(first_element) = optional_first_element {
+        let mut total = *first_element;
         for value in iterator {
-            total = total + *value;
+            total += *value;
             *value = total;
         }
     }
@@ -602,9 +601,8 @@ where
     ITER: Iterator<Item = T>,
 {
     // consume first element to initialize as min and max value
-    let min_value = iterator.next();
-    if min_value.is_some() {
-        let min_value = min_value.unwrap();
+    let min_value_optional = iterator.next();
+    if let Some(min_value) = min_value_optional {
         let tuple = iterator.fold((min_value, min_value), |(min_val, max_val), value| {
             (min(min_val, value), max(max_val, value))
         });

@@ -8,7 +8,7 @@ Add dependency to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-counting_sort = "1.0.2"
+counting_sort = "1.0.3"
 ```
 
 Works immediately "out of the box" for e.g. [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html)s holding integers like [`u8`](https://doc.rust-lang.org/std/primitive.u8.html), [`u16`](https://doc.rust-lang.org/std/primitive.u16.html), [`i8`](https://doc.rust-lang.org/std/primitive.i8.html), [`i16`](https://doc.rust-lang.org/std/primitive.i16.html) etc..
@@ -31,10 +31,16 @@ assert_eq!(vec![1,2,3,4], sorted_vec_result.unwrap());
 
 ## Release Notes
 
-* 1.0.1
-  * Added `keywords`, `categories` and `license-file` to `Cargo.toml`
+* 1.0.3
+  * Fixed some lint findings found by [clippy](https://github.com/rust-lang/rust-clippy)
+  * Finding types:
+    * [assign_op_pattern](https://rust-lang.github.io/rust-clippy/master/index.html#assign_op_pattern)
+    * [unnecessary unwrap](https://rust-lang.github.io/rust-clippy/master/index.html#unnecessary_unwrap)
+    * [needless_return](https://rust-lang.github.io/rust-clippy/master/index.html#needless_return)
 * 1.0.2
   * Updated `Readme.md`, changed `license-file` to `license`
+* 1.0.1
+  * Added `keywords`, `categories` and `license-file` to `Cargo.toml`
 
 ## Code coverage
 
