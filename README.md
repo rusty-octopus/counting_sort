@@ -47,11 +47,11 @@ assert_eq!(vec![1,2,3,4], sorted_vec_result.unwrap());
 ```console
 [INFO tarpaulin] Coverage Results:
 || Uncovered Lines:
-|| src/lib.rs: 118
+|| src/lib.rs: 105
 || Tested/Total Lines:
-|| src/lib.rs: 83/84 +0%
-||
-98.81% coverage, 83/84 lines covered, +0% change in coverage
+|| src/lib.rs: 81/82
+|| 
+98.78% coverage, 81/82 lines covered
 ```
 
 ## License
