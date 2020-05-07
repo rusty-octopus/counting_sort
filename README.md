@@ -50,7 +50,7 @@ assert_eq!(vec![1,2,3,4], sorted_vec_result.unwrap());
 || src/lib.rs: 105
 || Tested/Total Lines:
 || src/lib.rs: 81/82
-|| 
+||
 98.78% coverage, 81/82 lines covered
 ```
 
