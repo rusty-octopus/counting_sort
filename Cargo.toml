@@ -1,6 +1,6 @@
 [package]
 name = "counting_sort"
-version = "1.0.5"
+version = "1.0.6"
 authors = ["rusty-octopus <octopus@posteo.net>"]
 edition = "2018"
 license = "MIT"

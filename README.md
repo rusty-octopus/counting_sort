@@ -8,7 +8,7 @@ Add dependency to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-counting_sort = "1.0.3"
+counting_sort = "1.0.6"
 ```
 
 Works immediately "out of the box" for e.g. [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html)s holding integers like [`u8`](https://doc.rust-lang.org/std/primitive.u8.html), [`u16`](https://doc.rust-lang.org/std/primitive.u16.html), [`i8`](https://doc.rust-lang.org/std/primitive.i8.html), [`i16`](https://doc.rust-lang.org/std/primitive.i16.html) etc..
@@ -31,6 +31,9 @@ assert_eq!(vec![1,2,3,4], sorted_vec_result.unwrap());
 
 ## Release Notes
 
+* 1.0.6
+  * Usage needed to be updated to latest version
+  * SVG links are sanitized
 * 1.0.5
   * Changed SVG links to github repository
 * 1.0.4
@@ -184,7 +187,7 @@ Flags:                           fpu vme de pse tsc msr pae mce cx8 apic sep mtr
 |     80000|  323 us|          248 us|    4761 us| 109 us|
 |    100000|  406 us|          310 us|    6180 us| 137 us|
 
-![Lines u8](https://github.com/rusty-octopus/counting_sort/blob/trunk/lines_u8.svg)
+![Lines u8](https://raw.githubusercontent.com/rusty-octopus/counting_sort/trunk/lines_u8.svg?sanitize=true)
 
 ### sorting u16
 
@@ -202,4 +205,4 @@ Flags:                           fpu vme de pse tsc msr pae mce cx8 apic sep mtr
 |     80000|  382 us|          355 us|    4785 us|  174 us|
 |    100000|  477 us|          392 us|    6200 us|  205 us|
 
-![Lines u16](https://github.com/rusty-octopus/counting_sort/blob/trunk/lines_u16.svg)
+![Lines u16](https://raw.githubusercontent.com/rusty-octopus/counting_sort/trunk/lines_u16.svg?sanitize=true)
