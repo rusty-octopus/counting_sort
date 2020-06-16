@@ -31,8 +31,10 @@ assert_eq!(vec![1,2,3,4], sorted_vec_result.unwrap());
 
 ## Release Notes
 
+* 1.0.5
+  * Changed SVG links to github repository
 * 1.0.4
-  * SVG links are broken after renaming of default branch
+  * SVG links are broken on crates.io after renaming of default branch
 * 1.0.3
   * Fixed some lint findings found by [clippy](https://github.com/rust-lang/rust-clippy)
   * Finding types:
@@ -182,7 +184,7 @@ Flags:                           fpu vme de pse tsc msr pae mce cx8 apic sep mtr
 |     80000|  323 us|          248 us|    4761 us| 109 us|
 |    100000|  406 us|          310 us|    6180 us| 137 us|
 
-![Lines u8](lines_u8.svg)
+![Lines u8](https://github.com/rusty-octopus/counting_sort/blob/trunk/lines_u8.svg)
 
 ### sorting u16
 
@@ -200,4 +202,4 @@ Flags:                           fpu vme de pse tsc msr pae mce cx8 apic sep mtr
 |     80000|  382 us|          355 us|    4785 us|  174 us|
 |    100000|  477 us|          392 us|    6200 us|  205 us|
 
-![Lines u16](lines_u16.svg)
+![Lines u16](https://github.com/rusty-octopus/counting_sort/blob/trunk/lines_u16.svg)
