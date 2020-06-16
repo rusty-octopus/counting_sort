@@ -31,6 +31,8 @@ assert_eq!(vec![1,2,3,4], sorted_vec_result.unwrap());
 
 ## Release Notes
 
+* 1.0.4
+  * SVG links are broken after renaming of default branch
 * 1.0.3
   * Fixed some lint findings found by [clippy](https://github.com/rust-lang/rust-clippy)
   * Finding types:
