@@ -8,7 +8,7 @@ Add dependency to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-counting_sort = "1.0.6"
+counting_sort = "1.0.7"
 ```
 
 Works immediately "out of the box" for e.g. [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html)s holding integers like [`u8`](https://doc.rust-lang.org/std/primitive.u8.html), [`u16`](https://doc.rust-lang.org/std/primitive.u16.html), [`i8`](https://doc.rust-lang.org/std/primitive.i8.html), [`i16`](https://doc.rust-lang.org/std/primitive.i16.html) etc..
@@ -31,6 +31,9 @@ assert_eq!(vec![1,2,3,4], sorted_vec_result.unwrap());
 
 ## Release Notes
 
+* 1.0.7
+  * Added clippy configuration (`all` & `pedantic`)
+  * Fixed clippy findings
 * 1.0.6
   * Usage needed to be updated to latest version
   * SVG links are sanitized

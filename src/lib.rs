@@ -61,8 +61,8 @@
 //!     * Additionally the current implementation does not consume the given iterator
 //! * This means the counting sort algorithm excels whenever there are a lot of elements to be sorted but the range
 //!   range between minumum value and maximum value is small
-//! * counting sort for e.g. [HashSet](https://doc.rust-lang.org/std/collections/struct.HashSet.html)'s is sub-optimal since every element exists only
-//!   once in a [HashSet](https://doc.rust-lang.org/std/collections/struct.HashSet.html). Counting sort excels when a lot of elements exist in the
+//! * counting sort for e.g. [`HashSet`](https://doc.rust-lang.org/std/collections/struct.HashSet.html)'s is sub-optimal since every element exists only
+//!   once in a [`HashSet`](https://doc.rust-lang.org/std/collections/struct.HashSet.html). Counting sort excels when a lot of elements exist in the
 //!   collection but the number of distinct elements is small.
 //! * **<span style="color:red">Caution:</span>** Be careful using this algorithm when the range between minumum value and maximum value is large
 //! * An excellent illustration about the counting sort algorithm can be found [here](https://www.cs.usfca.edu/~galles/visualization/CountingSort.html)
@@ -70,6 +70,8 @@
 
 #![warn(missing_docs)]
 #![warn(missing_doc_code_examples)]
+#![deny(clippy::all)]
+#![deny(clippy::pedantic)]
 
 use core::cmp::{max, min, Ord};
 use core::convert::TryInto;
@@ -103,11 +105,11 @@ pub enum CountingSortError {
 impl Display for CountingSortError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CountingSortError::IntoIndexFailed(description) => description.fmt(f),
-            CountingSortError::IteratorEmpty(description) => description.fmt(f),
-            CountingSortError::SortingUnnecessary(description) => description.fmt(f),
-            CountingSortError::MinValueLargerMaxValue(description) => description.fmt(f),
-            CountingSortError::IndexOutOfBounds(description) => description.fmt(f),
+            CountingSortError::IntoIndexFailed(description)
+            | CountingSortError::IteratorEmpty(description)
+            | CountingSortError::SortingUnnecessary(description)
+            | CountingSortError::MinValueLargerMaxValue(description)
+            | CountingSortError::IndexOutOfBounds(description) => description.fmt(f),
         }
     }
 }
@@ -115,29 +117,29 @@ impl Display for CountingSortError {
 impl Error for CountingSortError {}
 
 impl CountingSortError {
-    /// Create IntoIndexFailed error when conversion to index failed.
+    /// Create `IntoIndexFailed` error when conversion to index failed.
     fn from_try_into_index_failed() -> CountingSortError {
         CountingSortError::IntoIndexFailed("Conversion into index failed")
     }
 
-    /// Create IteratorEmpty error when the iterator is empty.
+    /// Create `IteratorEmpty` error when the iterator is empty.
     fn from_empty_iterator() -> CountingSortError {
         CountingSortError::IteratorEmpty("There are no element available in the iterator")
     }
 
-    /// Create SortingUnnecessary when minimum value equals maximum value.
+    /// Create `SortingUnnecessary` when minimum value equals maximum value.
     fn from_sorting_unnecessary() -> CountingSortError {
         CountingSortError::SortingUnnecessary(
             "Minimum value is identical to maximum value, therefore no sorting is necessary",
         )
     }
 
-    /// Create SortingUnnecessary when minimum value equals maximum value.
+    /// Create `SortingUnnecessary` when minimum value equals maximum value.
     fn from_min_value_larger_max_value() -> CountingSortError {
         CountingSortError::MinValueLargerMaxValue("Minimum value is larger than maximum value")
     }
 
-    /// Create IndexOutOfBounds when minimum value equals maximum value.
+    /// Create `IndexOutOfBounds` when minimum value equals maximum value.
     fn from_index_out_of_bounds() -> CountingSortError {
         CountingSortError::IndexOutOfBounds(
             "Index is out of bounds, most likely the given maximum value is too small",
@@ -365,6 +367,10 @@ pub trait TryIntoIndex {
     /// and the minimum value. This concept is used in order to only allocate a
     /// [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html) that only covers the
     /// distance between the maximum value and the minimum value of the collection.
+    ///
+    /// # Errors
+    ///
+    /// Shall return an `Error` when converting value into an index (`usize`) fails.
     fn try_into_index(value: &Self, min_value: &Self) -> Result<usize, Self::Error>;
 }
 
