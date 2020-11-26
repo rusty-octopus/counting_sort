@@ -1,5 +1,5 @@
 #[cfg(test)]
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 mod integration_tests {
 
     use counting_sort::CountingSort;

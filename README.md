@@ -2,13 +2,18 @@
 
 A counting sort implementation for [`Iterator`](https://doc.rust-lang.org/std/iter/trait.Iterator.html)s.
 
+## Supported Minimum Rust version
+
+* Rust 1.48.0
+  * Due to intra-doc links
+
 ## Usage
 
 Add dependency to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-counting_sort = "1.0.7"
+counting_sort = "1.0.8"
 ```
 
 Works immediately "out of the box" for e.g. [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html)s holding integers like [`u8`](https://doc.rust-lang.org/std/primitive.u8.html), [`u16`](https://doc.rust-lang.org/std/primitive.u16.html), [`i8`](https://doc.rust-lang.org/std/primitive.i8.html), [`i16`](https://doc.rust-lang.org/std/primitive.i16.html) etc..
@@ -31,6 +36,10 @@ assert_eq!(vec![1,2,3,4], sorted_vec_result.unwrap());
 
 ## Release Notes
 
+* 1.0.8
+  * Fixed intra-docs link after Rust 1.48.0 (see [Linking items by name](https://doc.rust-lang.org/stable/rustdoc/linking-to-items-by-name.html))
+  * Added latest tarpaulin cfg attributes to not include tests in code coverage
+  * Fixed typos in README.md
 * 1.0.7
   * Added clippy configuration (`all` & `pedantic`)
   * Fixed clippy findings
@@ -57,11 +66,10 @@ assert_eq!(vec![1,2,3,4], sorted_vec_result.unwrap());
 ```console
 [INFO tarpaulin] Coverage Results:
 || Uncovered Lines:
-|| src/lib.rs: 105
 || Tested/Total Lines:
-|| src/lib.rs: 81/82
+|| src/lib.rs: 82/82
 ||
-98.78% coverage, 81/82 lines covered
+100.00% coverage, 82/82 lines covered
 ```
 
 ## License
@@ -95,27 +103,27 @@ assert_eq!(vec![1,2,3,4], sorted_vec_result.unwrap());
 * One option to achieve this is to reverse iterate the collection (and hence the need for a [DoubleEndedIterator](https://doc.rust-lang.org/std/iter/trait.DoubleEndedIterator.html))
 * Another option is possible when all elements are an integer, and it combines two loops, see a short description [here](https://en.wikipedia.org/wiki/Counting_sort#Variant_algorithms)
   * Since there is no Integer trait, this option was not possible if the implementation is aimed to be as generic as possible (without implementing everything as a macro)
-* In this alogorithm another option is implemented:
+* In this algorithm another option is implemented:
 
-1. In the count values vector (or actually the cumulative frequency) an additional element is allocated, representing the value which preceeds the minimum value
+1. In the count values vector (or actually the cumulative frequency) an additional element is allocated, representing the value which preceds the minimum value
     * This element obviously does not exist and is only used in the re-ordering phase
     * The element is allocated with value 0
 2. During the calculation of the histogram of all existing values (or more precisely their mapped value to an index) this 0-th element is never accessed
 3. During the calculation of the cumulative frequency (or prefix sum) this element is used, but its value is 0, so it does not change anything
 4. During the re-ordering of the given collection (the last phase of the algorithm) a trick is applied
-    1. When re-ordering each element, it does actually use the cumulative ferquency of the preceeding element to calculate the position of the element in the sorted output vector
+    1. When re-ordering each element, it does actually use the cumulative frequency of the preceding element to calculate the position of the element in the sorted output vector
     2. This is due to fact, that an additional element is allocated at the "beginning" of the count values vector (or cumulative frequency vector)
-    3. In order to understand this, it makes sense to look at [this](https://www.cs.usfca.edu/~galles/visualization/CountingSort.html) pretty nice visualisation of the counting sort algorithm
+    3. In order to understand this, it makes sense to look at [this](https://www.cs.usfca.edu/~galles/visualization/CountingSort.html) pretty nice visualization of the counting sort algorithm
         * During the re-ordering, an element from the "back" of the collection is "taken"
         * This element is then converted to an index (in the above visualization the element is identical to the index)
         * With this index the cumulative frequency of the element is used to calculate the position of the element in the sorted output vector
         * This calculation is done by decrementing the cumulative frequency by one
         * In this way, the fact that first element of a vector is the 0-the element is considered
         * Additionally it is needed to achieve the stability of the sort, elements keep their order even after the sort
-        * When each of the elements, which are equivalent, i.e. they are in an equivalence class, were put into the output vector, the (potentially multiple times decremented) cumulative frequency of this element equals the unmodified cumulative frequency of the preceeding element
+        * When each of the elements, which are equivalent, i.e. they are in an equivalence class, were put into the output vector, the (potentially multiple times decremented) cumulative frequency of this element equals the unmodified cumulative frequency of the preceding element
         * And this frequency is actually the position of the first element of the above mentioned equivalence class
-        * Therefore it is possible to use the cumulative frequency of the preceeding element to calculate the position of the element in the output sorted vector
-        * Obviously it is necessary to increment the cumulative frequency of preceeding element, each time an element is put into the sorted output vector, in order to avoid overriding equivalent elements
+        * Therefore it is possible to use the cumulative frequency of the preceding element to calculate the position of the element in the output sorted vector
+        * Obviously it is necessary to increment the cumulative frequency of preceding element, each time an element is put into the sorted output vector, in order to avoid overriding equivalent elements
         * Final note: the additional allocated element of the cumulative frequency does represent the index of the first minimum value of the collection: zero
 
 ## Asymptotic performance

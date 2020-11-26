@@ -1,29 +1,29 @@
-//! An counting sort implementation for [`Iterator`](https://doc.rust-lang.org/std/iter/trait.Iterator.html)s.
+//! An counting sort implementation for [`Iterator`](std::iter::Iterator)s.
 //!
-//! Provides the trait [`CountingSort`](trait.CountingSort.html) with a blanket implementation for
-//! [`Iterator`](https://doc.rust-lang.org/std/iter/trait.Iterator.html)s
+//! Provides the trait [`CountingSort`] with a blanket implementation for
+//! [`Iterator`](std::iter::Iterator)s
 //! for all types `T` that implement (beyond other `std` or `core` traits) the here defined
-//! [`TryIntoIndex`](trait.TryIntoIndex.html) trait.
+//! [`TryIntoIndex`] trait.
 //! Types that implement this trait can be tried to be converted to an
-//! [`usize`](https://doc.rust-lang.org/std/primitive.usize.html), i.e. an index.
+//! [`usize`](std::usize), i.e. an index.
 //!
 //! This trait is already implemented for the following integer types:
 //!
-//! * [`u8`](https://doc.rust-lang.org/std/primitive.u8.html)
-//! * [`u16`](https://doc.rust-lang.org/std/primitive.u16.html)
-//! * [`u32`](https://doc.rust-lang.org/std/primitive.u32.html)
-//! * [`usize`](https://doc.rust-lang.org/std/primitive.usize.html)
-//! * [`i8`](https://doc.rust-lang.org/std/primitive.i8.html)
-//! * [`i16`](https://doc.rust-lang.org/std/primitive.i16.html)
-//! * [`i32`](https://doc.rust-lang.org/std/primitive.i32.html)
+//! * [`u8`](std::u8)
+//! * [`u16`](std::u16)
+//! * [`u32`](std::u32)
+//! * [`usize`](std::usize)
+//! * [`i8`](std::i8)
+//! * [`i16`](std::i16)
+//! * [`i32`](std::i32)
 //!
-//! This means for all [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html)s,
-//! [`LinkedList`](https://doc.rust-lang.org/std/collections/struct.LinkedList.html)s,
-//! [`slice`](https://doc.rust-lang.org/std/primitive.slice.html)s or any other
-//! of the implementors of the [`Iterator`](https://doc.rust-lang.org/std/iter/trait.Iterator.html)
+//! This means for all [`Vec`](std::vec::Vec)s,
+//! [`LinkedList`](std::collections::LinkedList)s,
+//! [`slice`](std::slice)s or any other
+//! of the implementors of the [`Iterator`](std::iter::Iterator)
 //! trait holding one of the above integers types, counting sort can be executed.
 //!
-//! **Note:** Counting sort is also implemented for [`BTreeSet`](https://doc.rust-lang.org/std/collections/struct.BTreeSet.html),
+//! **Note:** Counting sort is also implemented for [`BTreeSet`](std::collections::BTreeSet),
 //! however it makes no sense to execute it there, since all elements are already in order and further sorting is completely
 //! useless.
 //!
@@ -50,19 +50,19 @@
 //! # Notes
 //!
 //! * The counting sort algorithm has an `O(n+d)` (`d` being the range between the minimum value and the maximum value) asymptotic runtime in comparison to an `O(n*log(n))`
-//!   of the Rust std library implementation of [`slice.sort`](https://doc.rust-lang.org/std/primitive.slice.html#method.sort)
+//!   of the Rust std library implementation of [`core::slice::sort`](https://doc.rust-lang.org/nightly/std/primitive.slice.html#method.sort)
 //! * However the memory consumption is higher
 //!     * Dependent on the range `d` between the minumum value and the maximum value (`d = max_value - min_value`),
-//!       a [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html) of
-//!       [`usize`](https://doc.rust-lang.org/std/primitive.usize.html)'s is allocated
-//!     * This may fast result in GB of memory: the maximum range of [`u32`](https://doc.rust-lang.org/std/primitive.u32.html) is
+//!       a [`Vec`](std::vec::Vec) of
+//!       [`usize`](std::usize)'s is allocated
+//!     * This may fast result in GB of memory: the maximum range of [`u32`](std::u32) is
 //!       4294967295, if usize is 4 bytes, than the memory consumption is 17179869180 bytes or approximately 16 GB
 //!       (1 GB = 1024*1024*1024 bytes)
 //!     * Additionally the current implementation does not consume the given iterator
 //! * This means the counting sort algorithm excels whenever there are a lot of elements to be sorted but the range
 //!   range between minumum value and maximum value is small
-//! * counting sort for e.g. [`HashSet`](https://doc.rust-lang.org/std/collections/struct.HashSet.html)'s is sub-optimal since every element exists only
-//!   once in a [`HashSet`](https://doc.rust-lang.org/std/collections/struct.HashSet.html). Counting sort excels when a lot of elements exist in the
+//! * counting sort for e.g. [`HashSet`](std::collections::HashSet)'s is sub-optimal since every element exists only
+//!   once in a [`HashSet`](std::collections::HashSet). Counting sort excels when a lot of elements exist in the
 //!   collection but the number of distinct elements is small.
 //! * **<span style="color:red">Caution:</span>** Be careful using this algorithm when the range between minumum value and maximum value is large
 //! * An excellent illustration about the counting sort algorithm can be found [here](https://www.cs.usfca.edu/~galles/visualization/CountingSort.html)
@@ -80,12 +80,12 @@ use core::fmt::Display;
 use std::error::Error;
 
 /// This enumeration is a list of all possible errors that can happen during
-/// [`cnt_sort`](trait.CountingSort.html#method.cnt_sort) or
-/// [`cnt_sort_min_max`](trait.CountingSort.html#method.cnt_sort_min_max).
+/// [`cnt_sort`](CountingSort::cnt_sort()) or
+/// [`cnt_sort_min_max`](CountingSort::cnt_sort_min_max()).
 #[derive(Debug)]
 pub enum CountingSortError {
     /// The conversion from a value of the to-be-sorted type `T` into an
-    /// index ([`usize`](https://doc.rust-lang.org/std/primitive.usize.html)) failed.
+    /// index ([`usize`](std::usize)) failed.
     /// Most likely due to an overflow happening.
     IntoIndexFailed(&'static str),
     /// The iterator is empty and therefore nothing can be sorted.
@@ -93,12 +93,12 @@ pub enum CountingSortError {
     /// The minimum value is equal to the maximum value, this means sorting is unnecessary.
     SortingUnnecessary(&'static str),
     /// The minimum value is larger than the maximum value, most likely due to calling
-    /// [`cnt_sort_min_max`](trait.CountingSort.html#method.cnt_sort_min_max) with the switched
+    /// [`cnt_sort_min_max`](CountingSort::cnt_sort_min_max()) with the switched
     /// parameters.
     MinValueLargerMaxValue(&'static str),
     /// The converted index is still larger than the length of the count value vector. This happens
     /// when the given maximum value is smaller than the actual maximum value when
-    /// [`cnt_sort_min_max`](trait.CountingSort.html#method.cnt_sort_min_max) is used.
+    /// [`cnt_sort_min_max`](CountingSort::cnt_sort_min_max()) is used.
     IndexOutOfBounds(&'static str),
 }
 
@@ -150,10 +150,10 @@ impl CountingSortError {
 /// The interface for counting sort algorithm.
 ///
 /// Interface provides blanket implementation of all collections that implement
-/// the [`Iterator`](https://doc.rust-lang.org/std/iter/trait.Iterator.html)
+/// the [`Iterator`](std::iter::Iterator)
 /// trait. These collections must also implement
-/// [`Clone`](https://doc.rust-lang.org/std/clone/trait.Clone.html), since the iterator is iterated several times,
-/// and [`Sized`](https://doc.rust-lang.org/std/marker/trait.Sized.html). If your collection does provide these,
+/// [`Clone`](std::clone::Clone), since the iterator is iterated several times,
+/// and [`Sized`](std::marker::Sized). If your collection does provide these,
 /// you can simply implement this trait "empty":
 ///
 /// ```rust,compile_fail
@@ -162,35 +162,35 @@ impl CountingSortError {
 ///
 /// However the intention of this trait is to provide an implementation of all collections that
 /// implement the
-/// [`Iterator`](https://doc.rust-lang.org/std/iter/trait.Iterator.html)
-/// trait like [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html).
+/// [`Iterator`](std::iter::Iterator)
+/// trait like [`Vec`](std::vec::Vec).
 ///
 /// The types which are held by the collections must implement
-/// [`Ord`](https://doc.rust-lang.org/std/cmp/trait.Ord.html) in order to sort the elements, as well
-/// as [`Copy`](https://doc.rust-lang.org/std/marker/trait.Copy.html), since the elements are copied
+/// [`Ord`](std::cmp::Ord) in order to sort the elements, as well
+/// as [`Copy`](std::marker::Copy), since the elements are copied
 /// during the count phase as well as the re-order phase. Finally the type must implement the in this
-/// crate defined [`TryIntoIndex`](trait.TryIntoIndex.html) trait.
+/// crate defined [`TryIntoIndex`] trait.
 pub trait CountingSort<'a, T>
 where
     T: Ord + Copy + TryIntoIndex + 'a,
     Self: Clone + Sized + Iterator<Item = &'a T>,
 {
     /// Sorts the elements in the
-    /// [`Iterator`](https://doc.rust-lang.org/std/iter/trait.Iterator.html)
+    /// [`Iterator`](std::iter::Iterator)
     /// with the counting sort algorithm.
     ///
     /// This sort is stable (i.e., does not reorder equal elements) and `O(n + d)` worst-case,
     /// where `d` is the distance between the maximum and minimum element in the collection.
     ///
     /// Memory usage is `O(n + d)` as well, since all elements of the collection are copied into a new
-    /// [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html) and the frequency of all
-    /// elements in the collection are counted in a [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html)
+    /// [`Vec`](std::vec::Vec) and the frequency of all
+    /// elements in the collection are counted in a [`Vec`](std::vec::Vec)
     /// of size `d`.
     ///
     /// **<span style="color:red">Caution:</span>** If distance `d` is large, than memory consumption is large
     /// and you process may run out of memory.
     ///
-    /// This method iterates [`Iterator`](https://doc.rust-lang.org/std/iter/trait.Iterator.html)
+    /// This method iterates [`Iterator`](std::iter::Iterator)
     /// in the beginning to identify the maximum and mimumum value in order to identify the distance `d`. This means
     /// the runtime is longer due to this additional `n` iterations and the checks needed to identify the minimum and
     /// maximum values.
@@ -208,12 +208,12 @@ where
     ///
     /// # Errors
     ///
-    /// * [`CountingSortError::IntoIndexFailed`](enum.CountingSortError.html#variant.IntoIndexFailed) when
+    /// * [`CountingSortError::IntoIndexFailed`] when
     ///   converting into an index fails, this could happen if the distance `d` is larger than
-    ///   [`usize::max_value`](https://doc.rust-lang.org/std/primitive.usize.html#method.max_value)
-    /// * [`CountingSortError::IteratorEmpty`](enum.CountingSortError.html#variant.IteratorEmpty) when the iterator
+    ///   [`usize::max_value`](https://doc.rust-lang.org/nightly/std/primitive.usize.html#method.max_value)
+    /// * [`CountingSortError::IteratorEmpty`] when the iterator
     ///   is empty (and there is nothing to sort)
-    /// * [`CountingSortError::SortingUnnecessary`](enum.CountingSortError.html#variant.SortingUnnecessary)] when
+    /// * [`CountingSortError::SortingUnnecessary`]] when
     ///   the minimum value is equal to the maximum value, this means all values are essentially equal and no sorting
     ///   is necessary
     fn cnt_sort(self) -> Result<Vec<T>, CountingSortError> {
@@ -221,15 +221,15 @@ where
     }
 
     /// Sorts the elements in the
-    /// [`Iterator`](https://doc.rust-lang.org/std/iter/trait.Iterator.html)
+    /// [`Iterator`](std::iter::Iterator)
     /// with the counting sort algorithm given the minimum and maximum element of the collection.
     ///
     /// This sort is stable (i.e., does not reorder equal elements) and `O(n + d)` worst-case,
     /// where `d` is the distance between the maximum and minimum element in the collection.
     ///
     /// Memory usage is `O(n + d)` as well, since all elements of the collection are copied into a new
-    /// [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html) and the frequency of all
-    /// elements in the collection are counted in a [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html)
+    /// [`Vec`](std::vec::Vec) and the frequency of all
+    /// elements in the collection are counted in a [`Vec`](std::vec::Vec)
     /// of size `d`.
     ///
     /// **<span style="color:red">Caution:</span>** If distance `d` is large, than memory consumption is large
@@ -265,15 +265,15 @@ where
     ///
     /// # Errors
     ///
-    /// * [`CountingSortError::IntoIndexFailed`](enum.CountingSortError.html#variant.IntoIndexFailed) when
+    /// * [`CountingSortError::IntoIndexFailed`] when
     ///   converting into an index fails, this could happen if the distance `d` is larger than
-    ///   [`usize::max_value`](https://doc.rust-lang.org/std/primitive.usize.html#method.max_value)
-    /// * [`CountingSortError::SortingUnnecessary`](enum.CountingSortError.html#variant.SortingUnnecessary)] when
+    ///   [`usize::max_value`](https://doc.rust-lang.org/nightly/std/primitive.usize.html#method.max_value)
+    /// * [`CountingSortError::SortingUnnecessary`]] when
     ///   the minimum value is equal to the maximum value, this means all values are essentially equal and no sorting
     ///   is necessary
-    /// * [`CountingSortError::MinValueLargerMaxValue`](enum.CountingSortError.html#variant.MinValueLargerMaxValue)] when
+    /// * [`CountingSortError::MinValueLargerMaxValue`]] when
     ///   the given minimum value is larger than the given maximum value
-    /// * [`CountingSortError::IndexOutOfBounds`](enum.CountingSortError.html#variant.IndexOutOfBounds)] when
+    /// * [`CountingSortError::IndexOutOfBounds`]] when
     ///   the given maximum value is smaller than the actual maximum value of the collection
     fn cnt_sort_min_max(self, min_value: &T, max_value: &T) -> Result<Vec<T>, CountingSortError> {
         counting_sort_min_max(self, min_value, max_value)
@@ -292,16 +292,16 @@ where
 
 /// The interface for converting values into an index.
 ///
-/// Index is always [`usize`](https://doc.rust-lang.org/std/primitive.usize.html). Unfortunatelly
-/// [`TryInto`](https://doc.rust-lang.org/std/convert/trait.TryInto.html) for
-/// [`usize`](https://doc.rust-lang.org/std/primitive.usize.html) is not sufficient since signed
+/// Index is always [`usize`](std::usize). Unfortunatelly
+/// [`TryInto`](std::convert::TryInto) for
+/// [`usize`](std::usize) is not sufficient since signed
 /// integers overflow when calculating `max_value - min_value`. Therefore this trait was added to
-/// implement an non-overflowing conversion to [`usize`](https://doc.rust-lang.org/std/primitive.usize.html).
+/// implement an non-overflowing conversion to [`usize`](std::usize).
 ///
 /// You can implement this trait yourself as long as there is a natural conversion from your type to
-/// [`usize`](https://doc.rust-lang.org/std/primitive.usize.html). However it must hold for your type that if
+/// [`usize`](std::usize). However it must hold for your type that if
 /// `t_1 <= t_2` then `YourType::try_into_index(t_1, min_value)? <= YourType::try_into_index(t_2, min_value)?`.
-/// Also consider that the size [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html) that holds the
+/// Also consider that the size [`Vec`](std::vec::Vec) that holds the
 /// frequency of all elements in the collection is calculated like this
 ///
 /// ```rust,compile_fail
@@ -365,7 +365,7 @@ pub trait TryIntoIndex {
     ///
     /// The `min_value` parameter is for calculating the offset between the actual value
     /// and the minimum value. This concept is used in order to only allocate a
-    /// [`Vec`](https://doc.rust-lang.org/std/vec/struct.Vec.html) that only covers the
+    /// [`Vec`](std::vec::Vec) that only covers the
     /// distance between the maximum value and the minimum value of the collection.
     ///
     /// # Errors
@@ -617,8 +617,8 @@ where
     None
 }
 
-#[cfg_attr(tarpaulin, skip)]
 #[cfg(test)]
+#[cfg(not(tarpaulin_include))]
 mod unit_tests {
 
     use super::*;
